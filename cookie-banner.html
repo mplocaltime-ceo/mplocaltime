@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Cookie Consent</title>
+  <link rel="stylesheet" href="/cookie-banner.css">
+</head>
+<body>
+  <!--
+    Cookie consent banner HTML.
+    Include this snippet near the end of your <body> so it loads quickly.
+    Initialize in your app with your real analytics or consent IDs, or omit them if they are not required.
+    See cookie-consent.js for configuration options and comments.
+  -->
+
+  <div id="cookie-consent-root"></div>
+
+  <script src="/cookie-consent.js" defer></script>
+  <script>
+    // Initialize using your real analytics or GTM IDs, or leave blank if not using them.
+    window.addEventListener('DOMContentLoaded', function() {
+      CookieConsent.init({
+        ga4Id: '', // YOUR GA4 ID, leave empty if not using GA4
+        gtmId: '', // YOUR GTM ID, leave empty if not using GTM
+        companyName: 'MpLocalTime',
+        policyUrl: '/privacy.html'
+      });
+    });
+  </script>
+
+  <!-- Example GTM (optional): place this in <head> of your page if using GTM,
+       but only include GTM once per page. This shows where GTM would normally go.
+
+  <script>
+    (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','YOUR-GTM-ID');
+  </script>
+  -->
+
+</body>
+</html>

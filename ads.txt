@@ -1,0 +1,3 @@
+# Google AdSense placeholder for Mpumalanga Local Time
+# Replace the sample publisher ID with your own AdSense publisher ID once approved.
+google.com, pub-0000000000000000, DIRECT, f08c47fec0942fa0

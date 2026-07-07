@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+  <url>
+    <loc>https://mplocaltime.co.za/article-template.html</loc>
+    <image:image>
+      <image:loc>https://mplocaltime.co.za/wp-content/uploads/2023/03/WhatsApp-Image-2023-03-01-at-11.54.02.jpeg</image:loc>
+      <image:caption>Mpumalanga Local Time newsroom team at work.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://mplocaltime.co.za/news.html</loc>
+    <image:image>
+      <image:loc>https://mplocaltime.co.za/wp-content/uploads/2023/03/WhatsApp-Image-2023-03-01-at-11.54.02.jpeg</image:loc>
+      <image:caption>Fresh local news coverage to keep Mpumalanga informed.</image:caption>
+    </image:image>
+  </url>
+</urlset>
