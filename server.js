@@ -3,12 +3,15 @@ const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
+const path = require('path');
 const { init } = require('./db');
 
 const SECRET = process.env.JWT_SECRET || 'dev-secret-change-this';
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(express.static(path.join(__dirname, '/')));
+app.use(express.static(path.join(__dirname, '/public')));
 
 async function withDB(fn) {
   const db = await init();
