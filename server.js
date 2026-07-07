@@ -4,6 +4,7 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const path = require('path');
+const fs = require('fs');
 const { init } = require('./db');
 
 const SECRET = process.env.JWT_SECRET || 'dev-secret-change-this';
@@ -12,6 +13,21 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '/')));
 app.use(express.static(path.join(__dirname, '/public')));
+
+// Serve index.html for root
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+// For any non-API route, check if HTML file exists
+app.get('/:page', (req, res, next) => {
+  if (req.path.startsWith('/api')) return next();
+  const file = path.join(__dirname, req.path + '.html');
+  if (fs.existsSync(file)) {
+    return res.sendFile(file);
+  }
+  next();
+});
 
 async function withDB(fn) {
   const db = await init();
