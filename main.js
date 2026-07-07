@@ -77,12 +77,92 @@ const app = (() => {
     });
   };
 
+  const initLatestNews = async () => {
+    const container = utils.qs('#latestNewsContainer');
+    if (!container) return;
+
+    try {
+      // Fetch featured story
+      const featuredRes = await fetch('/api/featured-story');
+      const featuredData = await featuredRes.json();
+      
+      // Fetch latest stories
+      const latestRes = await fetch(`/api/latest-stories${featuredData.story ? `?exclude=${featuredData.story.id}` : ''}`);
+      const latestData = await latestRes.json();
+
+      // Render featured story
+      const featuredHTML = featuredData.story ? `
+        <article class="featured-story" onclick="window.location.href='/news.html#story-${featuredData.story.id}'">
+          <div class="featured-story-image">
+            <img 
+              src="${featuredData.story.featured_image || '/logo.png'}" 
+              alt="${escapeHTML(featuredData.story.title)}"
+              loading="lazy"
+            />
+            <span class="featured-story-badge">${escapeHTML(featuredData.story.category || 'News')}</span>
+          </div>
+          <div class="featured-story-content">
+            <h3 class="featured-story-title">${escapeHTML(featuredData.story.title)}</h3>
+            <p class="featured-story-excerpt">${escapeHTML(featuredData.story.excerpt || featuredData.story.content.substring(0, 150))}</p>
+            <div class="featured-story-meta">
+              <span class="meta-item">${new Date(featuredData.story.submittedAt).toLocaleDateString('en-ZA', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
+              <span class="meta-item">by <strong>${escapeHTML(featuredData.story.author || 'Anonymous')}</strong></span>
+              <span class="meta-item"><strong>${featuredData.story.reading_time || 5}</strong> min read</span>
+              <span class="meta-item"><strong>${featuredData.story.views || 0}</strong> views</span>
+              <span class="meta-item"><strong>${featuredData.story.comments || 0}</strong> comments</span>
+            </div>
+          </div>
+        </article>
+      ` : '<p>No featured story available.</p>';
+
+      // Render latest stories
+      const storiesHTML = latestData.stories && latestData.stories.length > 0 ? `
+        <div class="latest-stories-list">
+          ${latestData.stories.map(story => `
+            <article class="story-item" onclick="window.location.href='/news.html#story-${story.id}'">
+              <div class="story-item-image">
+                <img 
+                  src="${story.featured_image || '/logo.png'}" 
+                  alt="${escapeHTML(story.title)}"
+                  loading="lazy"
+                />
+              </div>
+              <div class="story-item-content">
+                <h4 class="story-item-title">${escapeHTML(story.title)}</h4>
+                <div class="story-item-meta">
+                  <span class="story-category">${escapeHTML(story.category || 'News')}</span>
+                  <span>${new Date(story.submittedAt).toLocaleDateString('en-ZA', { month: 'short', day: 'numeric' })}</span>
+                  <span>${story.reading_time || 5} min</span>
+                </div>
+              </div>
+            </article>
+          `).join('')}
+        </div>
+      ` : '<p>No latest stories available.</p>';
+
+      container.innerHTML = `<div style="grid-column: 1;">${featuredHTML}</div><div style="grid-column: 2;">${storiesHTML}</div>`;
+      container.style.display = 'grid';
+      container.style.gridTemplateColumns = '1.6fr 1fr';
+      container.style.gap = '32px';
+    } catch (error) {
+      console.error('Error loading latest news:', error);
+      container.innerHTML = '<p>Unable to load latest news. Please try again later.</p>';
+    }
+  };
+
+  const escapeHTML = (text) => {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  };
+
   const init = () => {
     initMenu();
     initDarkMode();
     initSearch();
     initScroll();
     initShare();
+    initLatestNews();
   };
 
   return { init };

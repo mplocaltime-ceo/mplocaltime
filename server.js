@@ -138,6 +138,70 @@ app.get('/api/stories/:id', async (req, res) => {
   });
 });
 
+// Get featured story for homepage
+app.get('/api/featured-story', async (req, res) => {
+  return withDB(async (db) => {
+    const featured = await db.get(`
+      SELECT s.*, u.username as author, 
+             (SELECT COUNT(*) FROM comments WHERE story_id = s.id) as comments
+      FROM stories s 
+      LEFT JOIN users u ON u.id = s.author_id 
+      WHERE s.featured = 1 
+      ORDER BY s.submittedAt DESC 
+      LIMIT 1
+    `);
+    
+    if (featured) {
+      featured.comments = Number(featured.comments || 0);
+      return res.json({ story: featured });
+    }
+    
+    // If no featured story, return the latest story
+    const latest = await db.get(`
+      SELECT s.*, u.username as author,
+             (SELECT COUNT(*) FROM comments WHERE story_id = s.id) as comments
+      FROM stories s 
+      LEFT JOIN users u ON u.id = s.author_id 
+      ORDER BY s.submittedAt DESC 
+      LIMIT 1
+    `);
+    
+    if (latest) {
+      latest.comments = Number(latest.comments || 0);
+    }
+    res.json({ story: latest || null });
+  });
+});
+
+// Get latest stories (excluding featured or a specific story ID)
+app.get('/api/latest-stories', async (req, res) => {
+  const excludeId = req.query.exclude || null;
+  return withDB(async (db) => {
+    let query = `
+      SELECT s.*, u.username as author,
+             (SELECT COUNT(*) FROM comments WHERE story_id = s.id) as comments
+      FROM stories s 
+      LEFT JOIN users u ON u.id = s.author_id 
+      WHERE s.featured = 0
+    `;
+    
+    const params = [];
+    if (excludeId) {
+      query += ` AND s.id != ?`;
+      params.push(excludeId);
+    }
+    
+    query += ` ORDER BY s.submittedAt DESC LIMIT 4`;
+    
+    const stories = await db.all(query, params);
+    const result = stories.map(s => ({
+      ...s,
+      comments: Number(s.comments || 0)
+    }));
+    res.json({ stories: result });
+  });
+});
+
 const PORT = process.env.PORT || 3000;
 
 if (require.main === module) {

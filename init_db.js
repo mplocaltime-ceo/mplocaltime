@@ -17,6 +17,10 @@ const { init } = require('./db');
       author_id INTEGER,
       submittedAt TEXT,
       views INTEGER DEFAULT 0,
+      featured INTEGER DEFAULT 0,
+      featured_image TEXT,
+      excerpt TEXT,
+      reading_time INTEGER DEFAULT 5,
       FOREIGN KEY(author_id) REFERENCES users(id) ON DELETE SET NULL
     );
     CREATE TABLE IF NOT EXISTS comments (
