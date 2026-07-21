@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const path = require('path');
 const fs = require('fs');
+const multer = require('multer');
 const { init } = require('./db');
 
 const DEFAULT_ADMIN = {
@@ -47,6 +48,13 @@ async function initializeDatabase() {
         excerpt TEXT,
         reading_time INTEGER DEFAULT 5,
         is_breaking INTEGER DEFAULT 0,
+        status TEXT DEFAULT 'draft',
+        editorial_notes TEXT,
+        updatedAt TEXT,
+        slug TEXT,
+        seo_title TEXT,
+        meta_description TEXT,
+        tags TEXT,
         FOREIGN KEY(author_id) REFERENCES users(id) ON DELETE SET NULL
       );
       CREATE TABLE IF NOT EXISTS comments (
@@ -56,6 +64,17 @@ async function initializeDatabase() {
         text TEXT,
         at TEXT,
         FOREIGN KEY(story_id) REFERENCES stories(id) ON DELETE CASCADE
+      );
+      CREATE TABLE IF NOT EXISTS media (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        original_name TEXT NOT NULL,
+        stored_name TEXT NOT NULL,
+        mime_type TEXT,
+        size INTEGER DEFAULT 0,
+        caption TEXT,
+        createdAt TEXT NOT NULL,
+        author_id INTEGER,
+        FOREIGN KEY(author_id) REFERENCES users(id) ON DELETE SET NULL
       );
     `);
 
@@ -75,20 +94,57 @@ async function initializeDatabase() {
     }
 
     const storyColumns = await db.all('PRAGMA table_info(stories)');
-    if (!storyColumns.some((column) => column.name === 'is_breaking')) {
+    const storyColumnNames = storyColumns.map((column) => column.name);
+    const mediaColumns = await db.all('PRAGMA table_info(media)');
+    const mediaColumnNames = mediaColumns.map((column) => column.name);
+    if (!storyColumnNames.includes('is_breaking')) {
       await db.run('ALTER TABLE stories ADD COLUMN is_breaking INTEGER DEFAULT 0');
     }
+    if (!storyColumnNames.includes('status')) {
+      await db.run("ALTER TABLE stories ADD COLUMN status TEXT DEFAULT 'draft'");
+    }
+    if (!storyColumnNames.includes('editorial_notes')) {
+      await db.run('ALTER TABLE stories ADD COLUMN editorial_notes TEXT');
+    }
+    if (!storyColumnNames.includes('updatedAt')) {
+      await db.run('ALTER TABLE stories ADD COLUMN updatedAt TEXT');
+    }
+    if (!storyColumnNames.includes('slug')) {
+      await db.run('ALTER TABLE stories ADD COLUMN slug TEXT');
+    }
+    if (!storyColumnNames.includes('seo_title')) {
+      await db.run('ALTER TABLE stories ADD COLUMN seo_title TEXT');
+    }
+    if (!storyColumnNames.includes('meta_description')) {
+      await db.run('ALTER TABLE stories ADD COLUMN meta_description TEXT');
+    }
+    if (!storyColumnNames.includes('tags')) {
+      await db.run('ALTER TABLE stories ADD COLUMN tags TEXT');
+    }
+    if (!mediaColumnNames.includes('caption')) {
+      await db.run('ALTER TABLE media ADD COLUMN caption TEXT');
+    }
+    if (!mediaColumnNames.includes('createdAt')) {
+      await db.run('ALTER TABLE media ADD COLUMN createdAt TEXT');
+    }
+    if (!mediaColumnNames.includes('author_id')) {
+      await db.run('ALTER TABLE media ADD COLUMN author_id INTEGER');
+    }
 
-    const existingAdmin = await db.get(`SELECT id FROM users WHERE username = ?`, [DEFAULT_ADMIN.username]);
+    const existingAdmin = await db.get(`SELECT id, role FROM users WHERE username = ?`, [DEFAULT_ADMIN.username]);
     if (!existingAdmin) {
       const hash = await bcrypt.hash(DEFAULT_ADMIN.passwordEnv, 10);
       await db.run(`INSERT INTO users (username, password, bio, avatar, role) VALUES (?, ?, ?, ?, ?)`, [DEFAULT_ADMIN.username, hash, DEFAULT_ADMIN.bio, DEFAULT_ADMIN.avatar, DEFAULT_ADMIN.role]);
+    } else if ((existingAdmin.role || '').toLowerCase() !== DEFAULT_ADMIN.role.toLowerCase()) {
+      await db.run(`UPDATE users SET role = ?, bio = ?, avatar = ? WHERE username = ?`, [DEFAULT_ADMIN.role, DEFAULT_ADMIN.bio, DEFAULT_ADMIN.avatar, DEFAULT_ADMIN.username]);
     }
 
-    const existingReporter = await db.get(`SELECT id FROM users WHERE username = ?`, [DEFAULT_USER.username]);
+    const existingReporter = await db.get(`SELECT id, role FROM users WHERE username = ?`, [DEFAULT_USER.username]);
     if (!existingReporter) {
       const hash = await bcrypt.hash(DEFAULT_USER.passwordEnv, 10);
       await db.run(`INSERT INTO users (username, password, bio, avatar, role) VALUES (?, ?, ?, ?, ?)`, [DEFAULT_USER.username, hash, DEFAULT_USER.bio, DEFAULT_USER.avatar, DEFAULT_USER.role]);
+    } else if ((existingReporter.role || '').toLowerCase() !== DEFAULT_USER.role.toLowerCase()) {
+      await db.run(`UPDATE users SET role = ?, bio = ?, avatar = ? WHERE username = ?`, [DEFAULT_USER.role, DEFAULT_USER.bio, DEFAULT_USER.avatar, DEFAULT_USER.username]);
     }
 
     const existingStory = await db.get(`SELECT id FROM stories LIMIT 1`);
@@ -127,9 +183,9 @@ async function initializeDatabase() {
       const user = await db.get(`SELECT id FROM users WHERE username = 'admin' LIMIT 1`);
       for (const story of sampleStories) {
         await db.run(`
-          INSERT INTO stories (title, category, content, author_id, submittedAt, views, featured, featured_image, excerpt, reading_time, is_breaking)
-          VALUES (?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?)
-        `, [story.title, story.category, story.content, user?.id || null, now, story.featured_image, story.excerpt, story.reading_time, story.is_breaking || 0]);
+          INSERT INTO stories (title, category, content, author_id, submittedAt, views, featured, featured_image, excerpt, reading_time, is_breaking, status, updatedAt)
+          VALUES (?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?)
+        `, [story.title, story.category, story.content, user?.id || null, now, story.featured_image, story.excerpt, story.reading_time, story.is_breaking || 0, story.status || 'published', now]);
       }
     }
   } finally {
@@ -139,6 +195,11 @@ async function initializeDatabase() {
 
 const SECRET = process.env.JWT_SECRET || 'dev-secret-change-this';
 const app = express();
+const uploadsDir = path.join(__dirname, 'public', 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+const upload = multer({ dest: uploadsDir });
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '/')));
@@ -210,12 +271,47 @@ function authMiddleware(req, res, next) {
   }
 }
 
-app.post('/api/stories', authMiddleware, async (req, res) => {
-  const { title, category, content } = req.body || {};
-  if (!title || !content) return res.status(400).json({ error: 'title and content required' });
+function requireRole(...allowedRoles) {
+  return (req, res, next) => {
+    const role = String(req.user?.role || 'user').toLowerCase();
+    if (!allowedRoles.map((entry) => entry.toLowerCase()).includes(role)) {
+      return res.status(403).json({ error: 'insufficient permissions' });
+    }
+    next();
+  };
+}
+
+function normalizeStoryPayload(payload = {}) {
+  const status = String(payload.status || 'draft').trim().toLowerCase();
+  const safeStatus = ['draft', 'pending-review', 'fact-check', 'approved', 'published', 'scheduled', 'archived'].includes(status) ? status : 'draft';
+  return {
+    title: payload.title || '',
+    category: payload.category || 'News',
+    content: payload.content || '',
+    excerpt: payload.excerpt || '',
+    featured_image: payload.featured_image || '',
+    reading_time: Number(payload.reading_time || payload.readingTime || 5),
+    is_breaking: payload.is_breaking === 1 || payload.is_breaking === true || payload.is_breaking === '1' ? 1 : 0,
+    featured: payload.featured === 1 || payload.featured === true || payload.featured === '1' ? 1 : 0,
+    status: safeStatus,
+    editorial_notes: payload.editorial_notes || payload.editorialNotes || '',
+    slug: payload.slug || '',
+    seo_title: payload.seo_title || payload.seoTitle || '',
+    meta_description: payload.meta_description || payload.metaDescription || '',
+    tags: payload.tags || '',
+  };
+}
+
+app.post('/api/stories', authMiddleware, requireRole('admin', 'editor', 'journalist', 'contributor'), async (req, res) => {
+  const payload = normalizeStoryPayload(req.body || {});
+  if (!payload.title || !payload.content) return res.status(400).json({ error: 'title and content required' });
   return withDB(async (db) => {
     const submittedAt = new Date().toISOString();
-    const r = await db.run(`INSERT INTO stories (title,category,content,author_id,submittedAt,views) VALUES (?,?,?,?,?,0)`, [title, category, content, req.user.id, submittedAt]);
+    const r = await db.run(`
+      INSERT INTO stories (
+        title, category, content, author_id, submittedAt, views, excerpt, featured_image, reading_time, is_breaking, featured, status, editorial_notes, updatedAt, slug, seo_title, meta_description, tags
+      ) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [payload.title, payload.category, payload.content, req.user.id, submittedAt, payload.excerpt || payload.content.slice(0, 160), payload.featured_image, payload.reading_time, payload.is_breaking, payload.featured, payload.status, payload.editorial_notes, submittedAt, payload.slug || payload.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''), payload.seo_title, payload.meta_description, payload.tags]);
     const story = await db.get(`SELECT s.*, u.username as author FROM stories s LEFT JOIN users u ON u.id = s.author_id WHERE s.id = ?`, [r.lastID]);
     res.json({ story });
   });
@@ -226,7 +322,6 @@ app.get('/api/stories', authMiddleware, async (req, res) => {
   return withDB(async (db) => {
     if (author) {
       const rows = await db.all(`SELECT s.*, u.username as author FROM stories s LEFT JOIN users u ON u.id = s.author_id WHERE u.username = ? ORDER BY s.submittedAt DESC`, [author]);
-      // attach comments count
       const out = await Promise.all(rows.map(async (r) => {
         const c = await db.get(`SELECT COUNT(*) as cnt FROM comments WHERE story_id = ?`, [r.id]);
         r.comments = Number(c.cnt || 0);
@@ -236,6 +331,112 @@ app.get('/api/stories', authMiddleware, async (req, res) => {
     }
     const rows = await db.all(`SELECT s.*, u.username as author FROM stories s LEFT JOIN users u ON u.id = s.author_id ORDER BY s.submittedAt DESC`);
     res.json({ stories: rows });
+  });
+});
+
+app.put('/api/stories/:id', authMiddleware, async (req, res) => {
+  const id = req.params.id;
+  const payload = normalizeStoryPayload(req.body || {});
+  return withDB(async (db) => {
+    const existing = await db.get(`SELECT s.*, u.username as author FROM stories s LEFT JOIN users u ON u.id = s.author_id WHERE s.id = ?`, [id]);
+    if (!existing) return res.status(404).json({ error: 'story not found' });
+    const role = String(req.user?.role || 'user').toLowerCase();
+    const isEditorial = ['admin', 'editor', 'managing-editor', 'sub-editor', 'journalist'].includes(role);
+    if (!isEditorial && String(existing.author_id) !== String(req.user.id)) {
+      return res.status(403).json({ error: 'insufficient permissions' });
+    }
+    const updatedAt = new Date().toISOString();
+    const fields = [
+      ['title', payload.title],
+      ['category', payload.category],
+      ['content', payload.content],
+      ['excerpt', payload.excerpt || payload.content.slice(0, 160)],
+      ['featured_image', payload.featured_image],
+      ['reading_time', payload.reading_time],
+      ['is_breaking', payload.is_breaking],
+      ['featured', payload.featured],
+      ['status', payload.status],
+      ['editorial_notes', payload.editorial_notes],
+      ['updatedAt', updatedAt],
+      ['slug', payload.slug || (payload.title || existing.title).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')],
+      ['seo_title', payload.seo_title],
+      ['meta_description', payload.meta_description],
+      ['tags', payload.tags],
+    ];
+    const assignments = fields.map(([column]) => `${column} = ?`).join(', ');
+    const values = fields.map(([, value]) => value);
+    values.push(id);
+    await db.run(`UPDATE stories SET ${assignments} WHERE id = ?`, values);
+    const story = await db.get(`SELECT s.*, u.username as author FROM stories s LEFT JOIN users u ON u.id = s.author_id WHERE s.id = ?`, [id]);
+    res.json({ story });
+  });
+});
+
+app.get('/api/users/me', authMiddleware, async (req, res) => {
+  return withDB(async (db) => {
+    const user = await db.get(`SELECT id, username, bio, avatar, role FROM users WHERE id = ?`, [req.user.id]);
+    if (!user) return res.status(404).json({ error: 'user not found' });
+    const storyCount = await db.get(`SELECT COUNT(*) as cnt FROM stories WHERE author_id = ?`, [req.user.id]);
+    const views = await db.get(`SELECT COALESCE(SUM(views),0) as total FROM stories WHERE author_id = ?`, [req.user.id]);
+    res.json({ user: { ...user, storyCount: Number(storyCount?.cnt || 0), totalViews: Number(views?.total || 0) } });
+  });
+});
+
+app.post('/api/media/upload', authMiddleware, requireRole('admin', 'editor', 'journalist', 'contributor'), upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'file required' });
+  return withDB(async (db) => {
+    const caption = String(req.body.caption || '').trim();
+    const createdAt = new Date().toISOString();
+    const originalName = String(req.file.originalname || req.file.filename || 'upload').trim();
+    const storedName = String(req.file.filename || '').trim();
+    const mimeType = String(req.file.mimetype || 'application/octet-stream').trim();
+    const size = Number(req.file.size || 0);
+    const row = await db.run(`INSERT INTO media (original_name, stored_name, mime_type, size, caption, createdAt, author_id) VALUES (?, ?, ?, ?, ?, ?, ?)`, [originalName, storedName, mimeType, size, caption, createdAt, req.user.id]);
+    const media = await db.get(`SELECT * FROM media WHERE id = ?`, [row.lastID]);
+    res.json({ media: { ...media, url: `/uploads/${media.stored_name}` } });
+  });
+});
+
+app.get('/api/media', authMiddleware, async (req, res) => {
+  return withDB(async (db) => {
+    const rows = await db.all(`SELECT m.*, u.username as author FROM media m LEFT JOIN users u ON u.id = m.author_id ORDER BY m.createdAt DESC LIMIT 20`);
+    res.json({ media: rows.map((item) => ({ ...item, url: `/uploads/${item.stored_name}` })) });
+  });
+});
+
+app.get('/api/analytics/overview', async (req, res) => {
+  return withDB(async (db) => {
+    const storyCount = await db.get(`SELECT COUNT(*) as cnt FROM stories`);
+    const publishedCount = await db.get(`SELECT COUNT(*) as cnt FROM stories WHERE status = 'published'`);
+    const draftCount = await db.get(`SELECT COUNT(*) as cnt FROM stories WHERE status = 'draft'`);
+    const commentCount = await db.get(`SELECT COUNT(*) as cnt FROM comments`);
+    const viewCount = await db.get(`SELECT COALESCE(SUM(views),0) as total FROM stories`);
+    const topStories = await db.all(`SELECT id, title, views FROM stories ORDER BY views DESC LIMIT 5`);
+    res.json({ overview: { storyCount: Number(storyCount?.cnt || 0), publishedCount: Number(publishedCount?.cnt || 0), draftCount: Number(draftCount?.cnt || 0), commentCount: Number(commentCount?.cnt || 0), viewCount: Number(viewCount?.total || 0), topStories } });
+  });
+});
+
+app.get('/api/search', async (req, res) => {
+  const q = String(req.query.q || '').trim();
+  const category = String(req.query.category || '').trim();
+  const status = String(req.query.status || 'published').trim();
+  if (!q) {
+    return res.json({ results: [] });
+  }
+  return withDB(async (db) => {
+    const filters = ['(title LIKE ? OR content LIKE ? OR excerpt LIKE ? OR category LIKE ? OR tags LIKE ?)'];
+    const params = [`%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`];
+    if (category) {
+      filters.push('category = ?');
+      params.push(category);
+    }
+    if (status) {
+      filters.push('status = ?');
+      params.push(status);
+    }
+    const rows = await db.all(`SELECT s.*, u.username as author FROM stories s LEFT JOIN users u ON u.id = s.author_id WHERE ${filters.join(' AND ')} ORDER BY s.submittedAt DESC LIMIT 10`, params);
+    const results = rows.map((story) => ({ ...story, comments: Number(story.comments || 0) }));
+    res.json({ results });
   });
 });
 
@@ -495,27 +696,9 @@ app.get('/story/:id', async (req, res) => {
                   <div class="cm-entry-summary article-content">${contentHtml}</div>
                 </div>
               </article>
-              <div class="article-comments">
-                <h2>${commentsCount} Comment${commentsCount === 1 ? '' : 's'}</h2>
-                <div id="commentAuthPanel" class="comment-auth-panel">
-                  <p id="commentAuthMessage">To post a comment, sign in with your contributor account or use the login page.</p>
-                  <form id="commentLoginForm" class="comment-login-form" action="#" method="post">
-                    <input id="commentLoginUsername" name="username" type="text" placeholder="Username" required />
-                    <input id="commentLoginPassword" name="password" type="password" placeholder="Password" required />
-                    <div class="comment-form-actions">
-                      <span class="comment-form-message" id="commentLoginMessage"></span>
-                      <button type="submit">Login</button>
-                    </div>
-                  </form>
-                </div>
-                <form id="commentForm" class="comment-form" action="#" method="post">
-                  <textarea id="commentText" name="text" placeholder="Write your comment..." required></textarea>
-                  <div class="comment-form-actions">
-                    <span class="comment-form-message" id="commentFormMessage"></span>
-                    <button type="submit">Post comment</button>
-                  </div>
-                </form>
-                <div id="commentsList" class="comment-list">${commentsHtml}</div>
+              <div class="article-comments" aria-label="Article discussion">
+                <h2>Related stories</h2>
+                <p class="comment-empty">Continue reading more local reporting from Mpumalanga.</p>
               </div>
               <aside id="cm-secondary" class="cm-secondary">
                 <div class="article-related widget">
@@ -556,59 +739,9 @@ app.get('/story/:id', async (req, res) => {
   </div>
   <script>
     (function() {
-      const storyId = ${JSON.stringify(id)};
       const shareUrl = ${JSON.stringify(shareUrl)};
       const shareText = ${JSON.stringify(title)};
-      const token = localStorage.getItem('token');
-      const commentForm = document.getElementById('commentForm');
-      const commentText = document.getElementById('commentText');
-      const commentMessage = document.getElementById('commentFormMessage');
-      const commentLoginForm = document.getElementById('commentLoginForm');
-      const commentLoginMessage = document.getElementById('commentLoginMessage');
-      const commentAuthPanel = document.getElementById('commentAuthPanel');
-      const commentAuthMessage = document.getElementById('commentAuthMessage');
-      const commentsList = document.getElementById('commentsList');
       const shareButtons = document.querySelectorAll('[data-article-share]');
-
-      const renderComment = (comment) => {
-        const wrapper = document.createElement('div');
-        wrapper.className = 'comment';
-        const author = document.createElement('strong');
-        author.textContent = comment.author || 'Guest';
-        const time = document.createElement('time');
-        time.dateTime = comment.at || '';
-        time.textContent = comment.at ? new Date(comment.at).toLocaleDateString('en-ZA', { dateStyle:'long', timeStyle:'short'}) : '';
-        const text = document.createElement('p');
-        text.textContent = comment.text || '';
-        wrapper.appendChild(author);
-        wrapper.appendChild(time);
-        wrapper.appendChild(text);
-        return wrapper;
-      };
-
-      const updateComments = (items) => {
-        if (!commentsList) return;
-        commentsList.innerHTML = '';
-        if (!items || !items.length) {
-          const empty = document.createElement('p');
-          empty.className = 'comment-empty';
-          empty.textContent = 'No comments yet. Be the first to respond.';
-          commentsList.appendChild(empty);
-          return;
-        }
-        items.forEach((comment) => commentsList.appendChild(renderComment(comment)));
-      };
-
-      const setAuthView = () => {
-        if (token) {
-          if (commentAuthPanel) commentAuthPanel.style.display = 'none';
-          if (commentForm) commentForm.style.display = 'grid';
-          if (commentAuthMessage) commentAuthMessage.textContent = 'Leave a comment with your contributor account.';
-          return;
-        }
-        if (commentAuthPanel) commentAuthPanel.style.display = 'block';
-        if (commentForm) commentForm.style.display = 'none';
-      };
 
       const handleShare = (mode, url, text) => {
         if (mode === 'copy') {
@@ -638,65 +771,6 @@ app.get('/story/:id', async (req, res) => {
           });
         });
       }
-
-      if (commentLoginForm) {
-        commentLoginForm.addEventListener('submit', async function(event) {
-          event.preventDefault();
-          const username = document.getElementById('commentLoginUsername')?.value.trim();
-          const password = document.getElementById('commentLoginPassword')?.value.trim();
-          if (!username || !password) {
-            if (commentLoginMessage) commentLoginMessage.textContent = 'Enter both username and password.';
-            return;
-          }
-          if (commentLoginMessage) commentLoginMessage.textContent = 'Signing in...';
-          try {
-            const response = await fetch('/api/login', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ username, password }),
-            });
-            const result = await response.json();
-            if (!response.ok) throw new Error(result.error || 'Login failed.');
-            localStorage.setItem('token', result.token);
-            localStorage.setItem('currentUser', result.username);
-            if (commentLoginMessage) commentLoginMessage.textContent = 'Logged in successfully.';
-            setTimeout(setAuthView, 300);
-          } catch (err) {
-            if (commentLoginMessage) commentLoginMessage.textContent = err.message;
-          }
-        });
-      }
-
-      if (commentForm) {
-        commentForm.addEventListener('submit', async function(event) {
-          event.preventDefault();
-          const text = commentText?.value.trim();
-          if (!text) {
-            if (commentMessage) commentMessage.textContent = 'Please enter a comment.';
-            return;
-          }
-          if (commentMessage) commentMessage.textContent = 'Posting...';
-          try {
-            const response = await fetch('/api/stories/' + storyId + '/comments', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + localStorage.getItem('token'),
-              },
-              body: JSON.stringify({ text }),
-            });
-            const result = await response.json();
-            if (!response.ok) throw new Error(result.error || 'Unable to post comment.');
-            if (commentText) commentText.value = '';
-            if (commentMessage) commentMessage.textContent = 'Comment posted.';
-            updateComments(result.comments || []);
-          } catch (err) {
-            if (commentMessage) commentMessage.textContent = err.message;
-          }
-        });
-      }
-
-      setAuthView();
     })();
   </script>
 </body>

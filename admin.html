@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en-ZA">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Editorial Control Panel | Mpumalanga Local Time</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container navbar">
+      <div class="site-branding">
+        <a href="/" aria-label="Mpumalanga Local Time home">
+          <div style="display:flex;align-items:center;gap:12px">
+            <img src="/logo.png" alt="Mpumalanga Local Time logo" />
+            <div>
+              <strong class="site-title">Mpumalanga Local Time</strong>
+              <span class="site-tagline">Editorial control panel</span>
+            </div>
+          </div>
+        </a>
+      </div>
+      <nav class="nav-primary" id="primary-navigation" aria-label="Primary navigation">
+        <a href="/dashboard.html">Dashboard</a>
+        <a href="/admin.html">Control Panel</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container" style="padding:40px 0;display:grid;gap:24px;">
+    <section class="card">
+      <div class="card-content">
+        <h1 class="section-title">Editorial control panel</h1>
+        <p class="section-subtitle">Manage media uploads, review recent submissions, and keep the newsroom pipeline moving.</p>
+        <div id="adminStatus" class="meta"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-content">
+        <h2>Upload media</h2>
+        <form id="mediaForm" style="display:grid;gap:14px;">
+          <input id="mediaFile" name="file" type="file" required />
+          <input name="caption" placeholder="Caption" style="width:100%;padding:14px 16px;border:1px solid #dfe3e8;border-radius:16px;" />
+          <button class="btn primary" type="submit">Upload asset</button>
+          <p id="mediaMessage" class="meta"></p>
+        </form>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-content">
+        <h2>Recent media library</h2>
+        <div id="mediaGrid"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const token = localStorage.getItem('token') || '';
+    const adminStatus = document.getElementById('adminStatus');
+    const mediaForm = document.getElementById('mediaForm');
+    const mediaMessage = document.getElementById('mediaMessage');
+    const mediaGrid = document.getElementById('mediaGrid');
+
+    async function loadMedia() {
+      if (!token) {
+        mediaGrid.innerHTML = '<p>Please sign in to view the media library.</p>';
+        return;
+      }
+      try {
+        const response = await fetch('/api/media', { headers: { Authorization: 'Bearer ' + token } });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || 'Unable to load media');
+        const items = payload.media || [];
+        if (!items.length) {
+          mediaGrid.innerHTML = '<p>No assets uploaded yet.</p>';
+          return;
+        }
+        mediaGrid.innerHTML = items.map((item) => `
+          <div class="card" style="margin-bottom:12px;">
+            <div class="card-content">
+              <strong>${item.original_name || item.stored_name}</strong>
+              <p>${item.caption || 'Untitled asset'} • ${item.mime_type || 'file'} • ${item.size || 0} bytes</p>
+              <a href="${item.url}" target="_blank" rel="noopener">Open asset</a>
+            </div>
+          </div>
+        `).join('');
+      } catch (error) {
+        mediaGrid.innerHTML = '<p>Media library is unavailable right now.</p>';
+      }
+    }
+
+    mediaForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (!token) {
+        mediaMessage.textContent = 'Please sign in to upload media.';
+        return;
+      }
+      const fileInput = document.getElementById('mediaFile');
+      if (!fileInput.files.length) {
+        mediaMessage.textContent = 'Choose a file before uploading.';
+        return;
+      }
+      const formData = new FormData(mediaForm);
+      try {
+        const response = await fetch('/api/media/upload', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + token },
+          body: formData,
+        });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || 'Upload failed');
+        mediaMessage.textContent = `Uploaded ${payload.media?.original_name || 'file'} successfully.`;
+        mediaForm.reset();
+        loadMedia();
+      } catch (error) {
+        mediaMessage.textContent = error.message;
+      }
+    });
+
+    adminStatus.textContent = token ? 'Editorial tools are ready.' : 'Please sign in to unlock control panel actions.';
+    loadMedia();
+  </script>
+</body>
+</html>

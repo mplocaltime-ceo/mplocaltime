@@ -41,8 +41,9 @@
         <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px;">
           <div>
             <h1 class="section-title">Contributor Dashboard</h1>
-            <p class="section-subtitle">View and manage your stories with the Mpumalanga Local Time API.</p>
+            <p class="section-subtitle">Monitor your submissions, update workflow states, and keep your newsroom work moving.</p>
             <div id="welcome" class="meta"></div>
+            <div id="profileStats" class="meta" style="margin-top:12px;"></div>
           </div>
           <div>
             <button id="logoutButton" class="btn secondary">Logout</button>
@@ -53,19 +54,23 @@
 
     <section class="card">
       <div class="card-content">
-        <h2>Create a story</h2>
-        <form id="createStoryForm" style="display:grid;gap:16px;">
+        <h2>Create story</h2>
+        <form id="storyForm" style="display:grid;gap:16px;">
           <label>
             <span>Title</span>
-            <input id="storyTitle" type="text" required style="width:100%;padding:14px 16px;border:1px solid #dfe3e8;border-radius:16px;" />
+            <input id="storyTitle" name="title" type="text" required style="width:100%;padding:14px 16px;border:1px solid #dfe3e8;border-radius:16px;" />
           </label>
           <label>
             <span>Category</span>
-            <input id="storyCategory" type="text" placeholder="News, Business, Arts, Sports" style="width:100%;padding:14px 16px;border:1px solid #dfe3e8;border-radius:16px;" />
+            <input id="storyCategory" name="category" type="text" placeholder="News, Business, Arts, Sports" value="News" style="width:100%;padding:14px 16px;border:1px solid #dfe3e8;border-radius:16px;" />
           </label>
           <label>
             <span>Content</span>
-            <textarea id="storyContent" rows="8" required style="width:100%;padding:14px 16px;border:1px solid #dfe3e8;border-radius:16px;resize:vertical;"></textarea>
+            <textarea id="storyContent" name="content" rows="8" required style="width:100%;padding:14px 16px;border:1px solid #dfe3e8;border-radius:16px;resize:vertical;"></textarea>
+          </label>
+          <label>
+            <span>Status</span>
+            <input name="status" type="text" placeholder="draft" value="draft" style="width:100%;padding:14px 16px;border:1px solid #dfe3e8;border-radius:16px;" />
           </label>
           <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
             <button class="btn primary" type="submit">Publish story</button>
@@ -77,9 +82,26 @@
 
     <section class="card">
       <div class="card-content">
+        <h2>Search newsroom</h2>
+        <input id="searchInput" placeholder="Search stories" style="width:100%;padding:14px 16px;border:1px solid #dfe3e8;border-radius:16px;" />
+        <div id="searchResults" style="margin-top:14px;"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-content">
         <h2>Your stories</h2>
         <div id="storyArea">
           <p>Loading stories…</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-content">
+        <h2>Analytics snapshot</h2>
+        <div id="analyticsArea">
+          <p>Loading analytics…</p>
         </div>
       </div>
     </section>
@@ -137,19 +159,27 @@
   </footer>
 
   <script>
-    const user = localStorage.getItem('currentUser');
-    const token = localStorage.getItem('token');
+    const user = localStorage.getItem('currentUser') || 'Guest';
+    const token = localStorage.getItem('token') || '';
     const role = localStorage.getItem('currentRole') || 'user';
     const welcome = document.getElementById('welcome');
+    const profileStats = document.getElementById('profileStats');
     const storyArea = document.getElementById('storyArea');
-    const logoutButton = document.getElementById('logoutButton');
-    const createStoryForm = document.getElementById('createStoryForm');
+    const analyticsArea = document.getElementById('analyticsArea');
+    const searchInput = document.getElementById('searchInput');
+    const searchResults = document.getElementById('searchResults');
+    const storyForm = document.getElementById('storyForm');
     const createStoryMessage = document.getElementById('createStoryMessage');
+    const logoutButton = document.getElementById('logoutButton');
 
     function showNotLoggedIn() {
       welcome.textContent = 'Not logged in';
+      profileStats.innerHTML = '';
       storyArea.innerHTML = '<p>Please log in through <a href="/login.html">login</a> to view and manage your stories.</p>';
-      createStoryForm?.classList?.add('hidden');
+      searchResults.innerHTML = '<p>Sign in to search the newsroom.</p>';
+      storyForm?.querySelectorAll('input, textarea, button').forEach((element) => {
+        element.disabled = true;
+      });
     }
 
     function handleLogout() {
@@ -159,11 +189,33 @@
       window.location.href = '/login.html';
     }
 
-    if (!token || !user) {
+    if (!token || !user || user === 'Guest') {
       showNotLoggedIn();
     } else {
       welcome.innerHTML = `Logged in as <strong>${user}</strong> (${role})`;
       logoutButton?.addEventListener('click', handleLogout);
+      storyForm?.querySelectorAll('input, textarea, button').forEach((element) => {
+        element.disabled = false;
+      });
+
+      async function loadProfile() {
+        if (!token) {
+          profileStats.innerHTML = '<p>Please log in to view profile stats.</p>';
+          return;
+        }
+        try {
+          const resp = await fetch('/api/users/me', { headers: { Authorization: 'Bearer ' + token } });
+          const data = await resp.json();
+          if (!resp.ok) {
+            profileStats.innerHTML = `<p>${data.error || 'Unable to load profile.'}</p>`;
+            return;
+          }
+          const userData = data.user || {};
+          profileStats.innerHTML = `<strong>${userData.username}</strong> • ${userData.role || 'user'} • ${userData.storyCount || 0} stories • ${userData.totalViews || 0} total views`;
+        } catch (err) {
+          profileStats.innerHTML = '<p>Unable to load profile right now.</p>';
+        }
+      }
 
       async function loadStories() {
         if (!storyArea) return;
@@ -186,60 +238,118 @@
             storyArea.innerHTML = '<p>No stories found yet.</p>';
             return;
           }
-          storyArea.innerHTML = stories
-            .map((story) => `
-              <div class="card" style="margin-bottom:18px;">
-                <div class="card-content">
-                  <h3>${story.title}</h3>
-                  <p>${story.category || 'News'} • ${new Date(story.submittedAt).toLocaleDateString('en-ZA')} • ${story.views || 0} views</p>
-                  <p>${story.content?.slice(0, 180) || ''}${story.content?.length > 180 ? '...' : ''}</p>
+          storyArea.innerHTML = stories.map((story) => `
+            <div class="card" style="margin-bottom:18px;">
+              <div class="card-content">
+                <h3>${story.title}</h3>
+                <p>${story.category || 'News'} • ${new Date(story.submittedAt).toLocaleDateString('en-ZA')} • ${story.views || 0} views • ${story.status || 'draft'}</p>
+                <p>${String(story.content || '').slice(0, 180)}${String(story.content || '').length > 180 ? '...' : ''}</p>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+                  <button class="btn primary" type="button" data-update="pending-review" data-id="${story.id}">Send to review</button>
+                  <button class="btn" type="button" data-update="published" data-id="${story.id}">Publish</button>
                 </div>
               </div>
-            `)
-            .join('');
+            </div>
+          `).join('');
+          storyArea.querySelectorAll('[data-update]').forEach((button) => {
+            button.addEventListener('click', async () => {
+              const id = button.getAttribute('data-id');
+              const status = button.getAttribute('data-update');
+              try {
+                const response = await fetch(`/api/stories/${id}`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+                  body: JSON.stringify({ status, editorial_notes: `Updated from dashboard ${new Date().toISOString()}` }),
+                });
+                const payload = await response.json();
+                if (!response.ok) throw new Error(payload.error || 'Update failed');
+                createStoryMessage.textContent = `Updated ${payload.story?.title || 'story'} to ${status}`;
+                loadStories();
+              } catch (error) {
+                createStoryMessage.textContent = error.message;
+              }
+            });
+          });
         } catch (error) {
           storyArea.innerHTML = '<p>Failed to load stories. Please try again later.</p>';
-          console.error(error);
         }
       }
 
-      createStoryForm?.addEventListener('submit', async (event) => {
-        event.preventDefault();
-        createStoryMessage.textContent = '';
-        const title = document.getElementById('storyTitle')?.value.trim();
-        const category = document.getElementById('storyCategory')?.value.trim();
-        const content = document.getElementById('storyContent')?.value.trim();
-        if (!title || !content) {
-          createStoryMessage.textContent = 'Title and content are required.';
+      async function loadAnalytics() {
+        try {
+          const resp = await fetch('/api/analytics/overview');
+          const data = await resp.json();
+          if (!resp.ok) {
+            analyticsArea.innerHTML = `<p>${data.error || 'Unable to load analytics.'}</p>`;
+            return;
+          }
+          const overview = data.overview || {};
+          analyticsArea.innerHTML = `
+            <p><strong>${overview.storyCount || 0}</strong> total stories</p>
+            <p><strong>${overview.publishedCount || 0}</strong> published</p>
+            <p><strong>${overview.draftCount || 0}</strong> drafts</p>
+            <p><strong>${overview.commentCount || 0}</strong> comments</p>
+            <p><strong>${overview.viewCount || 0}</strong> total views</p>
+            <ul>${(overview.topStories || []).map((story) => `<li>${story.title} — ${story.views || 0} views</li>`).join('')}</ul>
+          `;
+        } catch (error) {
+          analyticsArea.innerHTML = '<p>Analytics are unavailable right now.</p>';
+        }
+      }
+
+      async function searchStories(query) {
+        if (!query) {
+          searchResults.innerHTML = '<p>Start typing to search the newsroom.</p>';
           return;
         }
-        createStoryMessage.textContent = 'Publishing story…';
+        try {
+          const resp = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+          const data = await resp.json();
+          const results = data.results || [];
+          if (!results.length) {
+            searchResults.innerHTML = '<p>No matching stories found.</p>';
+            return;
+          }
+          searchResults.innerHTML = results.map((story) => `<div class="card" style="margin-bottom:12px;"><div class="card-content"><strong>${story.title}</strong><p>${story.category || 'News'} • ${story.status || 'draft'}</p></div></div>`).join('');
+        } catch (error) {
+          searchResults.innerHTML = '<p>Search is unavailable right now.</p>';
+        }
+      }
+
+      storyForm?.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (!token) {
+          createStoryMessage.textContent = 'Please sign in first.';
+          return;
+        }
+        const formData = new FormData(storyForm);
+        const payload = {
+          title: formData.get('title'),
+          category: formData.get('category') || 'News',
+          content: formData.get('content'),
+          status: formData.get('status') || 'draft',
+        };
         try {
           const response = await fetch('/api/stories', {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: 'Bearer ' + token,
-            },
-            body: JSON.stringify({ title, category, content }),
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+            body: JSON.stringify(payload),
           });
           const data = await response.json();
-          if (!response.ok) {
-            createStoryMessage.textContent = data.error || 'Unable to publish story.';
-            return;
-          }
-          createStoryMessage.textContent = 'Story published successfully.';
-          document.getElementById('storyTitle').value = '';
-          document.getElementById('storyCategory').value = '';
-          document.getElementById('storyContent').value = '';
+          if (!response.ok) throw new Error(data.error || 'Unable to save story');
+          createStoryMessage.textContent = `Saved ${data.story?.title || 'story'} successfully.`;
+          storyForm.reset();
           loadStories();
         } catch (error) {
-          createStoryMessage.textContent = 'Unable to publish story. Please try again later.';
-          console.error(error);
+          createStoryMessage.textContent = error.message;
         }
       });
 
+      searchInput?.addEventListener('input', (event) => searchStories(event.target.value));
+
+      loadProfile();
       loadStories();
+      loadAnalytics();
     }
   </script>
 </body>
