@@ -7,6 +7,89 @@ const path = require('path');
 const fs = require('fs');
 const { init } = require('./db');
 
+async function initializeDatabase() {
+  const db = await init();
+  try {
+    await db.exec(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS stories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        category TEXT,
+        content TEXT,
+        author_id INTEGER,
+        submittedAt TEXT,
+        views INTEGER DEFAULT 0,
+        featured INTEGER DEFAULT 0,
+        featured_image TEXT,
+        excerpt TEXT,
+        reading_time INTEGER DEFAULT 5,
+        FOREIGN KEY(author_id) REFERENCES users(id) ON DELETE SET NULL
+      );
+      CREATE TABLE IF NOT EXISTS comments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        story_id INTEGER NOT NULL,
+        author TEXT,
+        text TEXT,
+        at TEXT,
+        FOREIGN KEY(story_id) REFERENCES stories(id) ON DELETE CASCADE
+      );
+    `);
+
+    const existingUser = await db.get(`SELECT * FROM users LIMIT 1`);
+    if (!existingUser) {
+      const bcrypt = require('bcrypt');
+      const hash = await bcrypt.hash(process.env.INITIAL_PASSWORD || 'changeme', 10);
+      await db.run(`INSERT INTO users (username, password) VALUES (?, ?)`, ['admin', hash]);
+    }
+
+    const existingStory = await db.get(`SELECT id FROM stories LIMIT 1`);
+    if (!existingStory) {
+      const now = new Date().toISOString();
+      const sampleStories = [
+        {
+          title: 'Mbombela clinics see faster access after mobile health rollout',
+          category: 'Health',
+          content: 'Residents in the Lowveld say the latest medical outreach programme is shrinking delays and bringing specialist care closer to home.',
+          excerpt: 'Residents in the Lowveld say the new medical outreach programme is shrinking delays and bringing specialist care closer to home.',
+          featured_image: 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=1400&q=80',
+          reading_time: 4,
+        },
+        {
+          title: 'Local roads and transport links gain momentum ahead of the busy season',
+          category: 'Business',
+          content: 'Business owners and commuters say the latest upgrades are cutting travel time and improving access to key growth corridors.',
+          excerpt: 'Business owners and commuters say the latest upgrades are cutting travel time and improving access to key growth corridors.',
+          featured_image: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=1400&q=80',
+          reading_time: 5,
+        },
+        {
+          title: 'School and youth programmes expand as community leaders back local learning',
+          category: 'Education',
+          content: 'New partnerships are helping young people stay engaged through mentorship, arts and practical learning opportunities.',
+          excerpt: 'New partnerships are helping young people stay engaged through mentorship, arts and practical learning opportunities.',
+          featured_image: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1400&q=80',
+          reading_time: 3,
+        }
+      ];
+
+      const user = await db.get(`SELECT id FROM users WHERE username = 'admin' LIMIT 1`);
+      for (const story of sampleStories) {
+        await db.run(`
+          INSERT INTO stories (title, category, content, author_id, submittedAt, views, featured, featured_image, excerpt, reading_time)
+          VALUES (?, ?, ?, ?, ?, 0, 0, ?, ?, ?)
+        `, [story.title, story.category, story.content, user?.id || null, now, story.featured_image, story.excerpt, story.reading_time]);
+      }
+    }
+  } finally {
+    await db.close();
+  }
+}
+
 const SECRET = process.env.JWT_SECRET || 'dev-secret-change-this';
 const app = express();
 app.use(cors());
@@ -205,7 +288,12 @@ app.get('/api/latest-stories', async (req, res) => {
 const PORT = process.env.PORT || 3000;
 
 if (require.main === module) {
-  app.listen(PORT, () => console.log(`API listening on ${PORT}`));
+  initializeDatabase()
+    .then(() => app.listen(PORT, () => console.log(`API listening on ${PORT}`)))
+    .catch((error) => {
+      console.error('Database initialization failed:', error);
+      process.exit(1);
+    });
 }
 
 module.exports = app;
