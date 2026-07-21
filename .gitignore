@@ -9,6 +9,9 @@ node_modules/
 # Vercel and local build artifacts
 .vercel/
 
+# Local upload artifacts
+public/uploads/
+
 # SQLite database
 data.db
 

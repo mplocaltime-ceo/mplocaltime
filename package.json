@@ -2,6 +2,16 @@
   "name": "mplocaltime-api",
   "version": "1.0.0",
   "description": "Minimal API for mplocaltime contributor flow",
+  "author": "mplocaltime-ceo",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mplocaltime-ceo/mplocaltime.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mplocaltime-ceo/mplocaltime/issues"
+  },
+  "homepage": "https://github.com/mplocaltime-ceo/mplocaltime#readme",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -10,12 +20,16 @@
     "test": "node --test tests/**/*.test.js"
   },
   "dependencies": {
-    "bcrypt": "^5.1.0",
+    "bcrypt": "^6.0.0",
+    "body-parser": "^1.20.6",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "express": "^4.18.2",
     "jsonwebtoken": "^9.0.0",
     "multer": "^2.2.0",
-    "sqlite3": "^5.1.6"
+    "sqlite3": "^6.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
   }
 }
