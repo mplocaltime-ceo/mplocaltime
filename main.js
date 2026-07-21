@@ -356,7 +356,7 @@ const app = (() => {
                     <div class="premium-story-actions">
                       <button class="action-chip" type="button" data-share aria-label="Share ${escapeHTML(story.title)}" data-url="${window.location.href}">↗</button>
                       <button class="action-chip" type="button" aria-label="Bookmark ${escapeHTML(story.title)}">🔖</button>
-                      <a class="read-more-link" href="/news.html">Read more</a>
+                      <a class="read-more-link" href="/story/${story.id}">Read more</a>
                     </div>
                   </div>
                 </div>

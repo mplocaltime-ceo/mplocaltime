@@ -6,8 +6,14 @@
 
 ```bash
 cp .env.example .env
-# then edit .env and set JWT_SECRET and VERCEL_TOKEN
+# then edit .env and set JWT_SECRET, INITIAL_PASSWORD, INITIAL_USER_PASSWORD and VERCEL_TOKEN
 ```
+
+Default seeded accounts:
+- admin / changeme (admin)
+- reporter / contributor (user)
+
+You can override the default passwords with `INITIAL_PASSWORD` and `INITIAL_USER_PASSWORD`.
 
 2. Deploy to Vercel:
 
