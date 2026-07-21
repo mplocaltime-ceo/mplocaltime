@@ -11,9 +11,18 @@ This directory contains a Flutter-based companion app for Mpumalanga Local Time.
 
 ## Run locally
 1. Install Flutter SDK.
-2. From this directory, run:
+2. Provide real Firebase values when launching the app:
 
 ```bash
 flutter pub get
-flutter run
+flutter run \
+  --dart-define=FIREBASE_API_KEY=your-api-key \
+  --dart-define=FIREBASE_APP_ID=your-app-id \
+  --dart-define=FIREBASE_MESSAGING_SENDER_ID=your-sender-id \
+  --dart-define=FIREBASE_PROJECT_ID=your-project-id \
+  --dart-define=FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com \
+  --dart-define=FIREBASE_STORAGE_BUCKET=your-project.firebasestorage.app \
+  --dart-define=FIREBASE_MEASUREMENT_ID=your-measurement-id
 ```
+
+3. If you are using Firebase Auth, replace the placeholder values with the values from your Firebase project settings.
