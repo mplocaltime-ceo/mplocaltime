@@ -47,17 +47,18 @@
       <div class="card-content">
         <h1 class="section-title">Contributor login</h1>
         <p class="section-subtitle">Sign in to manage submissions, view your stories, and update your profile.</p>
-        <form action="/dashboard.html" method="get" style="display:grid;gap:18px;">
+        <form id="loginForm" style="display:grid;gap:18px;">
           <label>
             <span>Username</span>
-            <input name="username" type="text" required style="width:100%;padding:14px 16px;border:1px solid #dfe3e8;border-radius:16px;">
+            <input id="loginUsername" name="username" type="text" required style="width:100%;padding:14px 16px;border:1px solid #dfe3e8;border-radius:16px;">
           </label>
           <label>
             <span>Password</span>
-            <input name="password" type="password" required style="width:100%;padding:14px 16px;border:1px solid #dfe3e8;border-radius:16px;">
+            <input id="loginPassword" name="password" type="password" required style="width:100%;padding:14px 16px;border:1px solid #dfe3e8;border-radius:16px;">
           </label>
           <button class="btn primary" type="submit">Login</button>
         </form>
+        <div id="loginMessage" class="meta" style="margin-top:16px;color:#a00;"></div>
         <p style="margin-top:18px;color:var(--muted);">If you are a contributor, use the API login to access your dashboard from the editor tools.</p>
       </div>
     </section>
@@ -113,5 +114,44 @@
       </div>
     </div>
   </footer>
+  <script>
+    const currentToken = localStorage.getItem('token');
+    if (currentToken) {
+      window.location.href = '/dashboard.html';
+    }
+
+    const loginForm = document.getElementById('loginForm');
+    const loginMessage = document.getElementById('loginMessage');
+
+    loginForm?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      loginMessage.textContent = '';
+      const username = document.getElementById('loginUsername')?.value.trim();
+      const password = document.getElementById('loginPassword')?.value.trim();
+      if (!username || !password) {
+        loginMessage.textContent = 'Please enter both username and password.';
+        return;
+      }
+      loginMessage.textContent = 'Signing in...';
+      try {
+        const response = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password }),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          loginMessage.textContent = data.error || 'Login failed. Please try again.';
+          return;
+        }
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('currentUser', data.username);
+        localStorage.setItem('currentRole', data.role || 'user');
+        window.location.href = '/dashboard.html';
+      } catch (error) {
+        loginMessage.textContent = 'Unable to reach the server. Please try again later.';
+      }
+    });
+  </script>
 </body>
 </html>

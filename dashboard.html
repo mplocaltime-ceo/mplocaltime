@@ -38,9 +38,40 @@
   <main class="container" style="padding: 40px 0;">
     <section class="card">
       <div class="card-content">
-        <h1 class="section-title">Contributor Dashboard</h1>
-        <p class="section-subtitle">View and manage your stories with the Mpumalanga Local Time API.</p>
-        <div id="welcome" class="meta"></div>
+        <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px;">
+          <div>
+            <h1 class="section-title">Contributor Dashboard</h1>
+            <p class="section-subtitle">View and manage your stories with the Mpumalanga Local Time API.</p>
+            <div id="welcome" class="meta"></div>
+          </div>
+          <div>
+            <button id="logoutButton" class="btn secondary">Logout</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-content">
+        <h2>Create a story</h2>
+        <form id="createStoryForm" style="display:grid;gap:16px;">
+          <label>
+            <span>Title</span>
+            <input id="storyTitle" type="text" required style="width:100%;padding:14px 16px;border:1px solid #dfe3e8;border-radius:16px;" />
+          </label>
+          <label>
+            <span>Category</span>
+            <input id="storyCategory" type="text" placeholder="News, Business, Arts, Sports" style="width:100%;padding:14px 16px;border:1px solid #dfe3e8;border-radius:16px;" />
+          </label>
+          <label>
+            <span>Content</span>
+            <textarea id="storyContent" rows="8" required style="width:100%;padding:14px 16px;border:1px solid #dfe3e8;border-radius:16px;resize:vertical;"></textarea>
+          </label>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+            <button class="btn primary" type="submit">Publish story</button>
+            <span id="createStoryMessage" style="color:#a00;"></span>
+          </div>
+        </form>
       </div>
     </section>
 
@@ -106,50 +137,110 @@
   </footer>
 
   <script>
-    const user = localStorage.getItem('currentUser') || 'Guest';
-    const token = localStorage.getItem('token') || '';
-    document.getElementById('welcome').textContent = user ? `Logged in as ${user}` : 'Not logged in';
+    const user = localStorage.getItem('currentUser');
+    const token = localStorage.getItem('token');
+    const role = localStorage.getItem('currentRole') || 'user';
+    const welcome = document.getElementById('welcome');
+    const storyArea = document.getElementById('storyArea');
+    const logoutButton = document.getElementById('logoutButton');
+    const createStoryForm = document.getElementById('createStoryForm');
+    const createStoryMessage = document.getElementById('createStoryMessage');
 
-    async function loadStories() {
-      const area = document.getElementById('storyArea');
-      if (!token) {
-        area.innerHTML = '<p>Please log in through <a href="/login.html">login</a> to view your stories.</p>';
-        return;
-      }
-      try {
-        const resp = await fetch(`/api/stories?author=${encodeURIComponent(user)}`, {
-          headers: { Authorization: 'Bearer ' + token },
-        });
-        const data = await resp.json();
-        if (!resp.ok) {
-          area.innerHTML = `<p>${data.error || 'Unable to load stories.'}</p>`;
-          return;
-        }
-        const stories = data.stories || [];
-        if (!stories.length) {
-          area.innerHTML = '<p>No stories found yet.</p>';
-          return;
-        }
-        area.innerHTML = stories
-          .map(
-            (story) => `
-          <div class="card" style="margin-bottom:18px;">
-            <div class="card-content">
-              <h3>${story.title}</h3>
-              <p>${story.category || 'News'} • ${new Date(story.submittedAt).toLocaleDateString('en-ZA')} • ${story.views || 0} views</p>
-              <p>${story.content.slice(0, 180)}${story.content.length > 180 ? '...' : ''}</p>
-            </div>
-          </div>
-        `,
-          )
-          .join('');
-      } catch (err) {
-        area.innerHTML = '<p>Failed to load stories. Please try again later.</p>';
-        console.log(err);
-      }
+    function showNotLoggedIn() {
+      welcome.textContent = 'Not logged in';
+      storyArea.innerHTML = '<p>Please log in through <a href="/login.html">login</a> to view and manage your stories.</p>';
+      createStoryForm?.classList?.add('hidden');
     }
 
-    loadStories();
+    function handleLogout() {
+      localStorage.removeItem('token');
+      localStorage.removeItem('currentUser');
+      localStorage.removeItem('currentRole');
+      window.location.href = '/login.html';
+    }
+
+    if (!token || !user) {
+      showNotLoggedIn();
+    } else {
+      welcome.innerHTML = `Logged in as <strong>${user}</strong> (${role})`;
+      logoutButton?.addEventListener('click', handleLogout);
+
+      async function loadStories() {
+        if (!storyArea) return;
+        storyArea.innerHTML = '<p>Loading stories…</p>';
+        try {
+          const response = await fetch(`/api/stories?author=${encodeURIComponent(user)}`, {
+            headers: { Authorization: 'Bearer ' + token },
+          });
+          const data = await response.json();
+          if (!response.ok) {
+            if (response.status === 401) {
+              handleLogout();
+              return;
+            }
+            storyArea.innerHTML = `<p>${data.error || 'Unable to load stories.'}</p>`;
+            return;
+          }
+          const stories = data.stories || [];
+          if (!stories.length) {
+            storyArea.innerHTML = '<p>No stories found yet.</p>';
+            return;
+          }
+          storyArea.innerHTML = stories
+            .map((story) => `
+              <div class="card" style="margin-bottom:18px;">
+                <div class="card-content">
+                  <h3>${story.title}</h3>
+                  <p>${story.category || 'News'} • ${new Date(story.submittedAt).toLocaleDateString('en-ZA')} • ${story.views || 0} views</p>
+                  <p>${story.content?.slice(0, 180) || ''}${story.content?.length > 180 ? '...' : ''}</p>
+                </div>
+              </div>
+            `)
+            .join('');
+        } catch (error) {
+          storyArea.innerHTML = '<p>Failed to load stories. Please try again later.</p>';
+          console.error(error);
+        }
+      }
+
+      createStoryForm?.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        createStoryMessage.textContent = '';
+        const title = document.getElementById('storyTitle')?.value.trim();
+        const category = document.getElementById('storyCategory')?.value.trim();
+        const content = document.getElementById('storyContent')?.value.trim();
+        if (!title || !content) {
+          createStoryMessage.textContent = 'Title and content are required.';
+          return;
+        }
+        createStoryMessage.textContent = 'Publishing story…';
+        try {
+          const response = await fetch('/api/stories', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: 'Bearer ' + token,
+            },
+            body: JSON.stringify({ title, category, content }),
+          });
+          const data = await response.json();
+          if (!response.ok) {
+            createStoryMessage.textContent = data.error || 'Unable to publish story.';
+            return;
+          }
+          createStoryMessage.textContent = 'Story published successfully.';
+          document.getElementById('storyTitle').value = '';
+          document.getElementById('storyCategory').value = '';
+          document.getElementById('storyContent').value = '';
+          loadStories();
+        } catch (error) {
+          createStoryMessage.textContent = 'Unable to publish story. Please try again later.';
+          console.error(error);
+        }
+      });
+
+      loadStories();
+    }
   </script>
 </body>
 </html>
