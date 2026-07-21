@@ -26,33 +26,20 @@
     <div class="top-bar">
       <div class="container top-bar-inner">
         <div class="top-bar-meta">
-          <span id="currentDate">Loading date…</span>
-          <span>•</span>
-          <span class="weather-pill">☀️ Mbombela 18°C</span>
+          <a class="weather-pill" href="https://github.com/mplocaltime-ceo/mplocaltime" target="_blank" rel="noopener" aria-label="View Mpumalanga Local Time on GitHub">↗ GitHub Repository</a>
         </div>
-        <div class="header-tools">
-          <button id="themeToggle" class="icon-button" type="button" aria-label="Toggle dark mode">☀️</button>
-          <a class="social-link" href="https://www.facebook.com/Mpumalangalocaltime" target="_blank" rel="noopener" aria-label="Facebook">f</a>
-          <a class="social-link" href="https://x.com/mplocaltime1" target="_blank" rel="noopener" aria-label="X">x</a>
-          <a class="text-link" href="/login">Login</a>
-          <a class="text-link" href="/login">Register</a>
-          <a class="btn primary small" href="/news.html">Subscribe</a>
-        </div>
+        <div class="header-tools"></div>
       </div>
     </div>
 
     <div class="container navbar">
-      <div class="site-branding">
-        <a href="/" aria-label="Mpumalanga Local Time home">
-          <div class="brand-wrap">
-            <img src="/logo.png" alt="Mpumalanga Local Time logo" />
-            <div>
-              <strong class="site-title">Mpumalanga Local Time</strong>
-              <span class="site-tagline">Skhatsini eMpumalanga — news, sport, business and community</span>
-            </div>
-          </div>
-        </a>
-      </div>
+      <a href="/" class="brand-mark" aria-label="Mpumalanga Local Time home">
+        <img src="/logo.png" alt="Mpumalanga Local Time logo" />
+        <span class="brand-mark-text">
+          <strong>Mpumalanga Local Time</strong>
+          <small>News • Sport • Business • Community</small>
+        </span>
+      </a>
       <button class="nav-toggle" aria-expanded="false" aria-controls="primary-navigation">Menu</button>
       <nav class="nav-primary" id="primary-navigation" aria-label="Primary navigation">
         <div class="nav-item has-mega-menu">
@@ -69,10 +56,6 @@
         <a href="/community.html">Community</a>
         <a href="/about.html">About</a>
         <a href="/contact.html">Contact</a>
-        <div class="nav-search">
-          <label class="visually-hidden" for="siteSearch">Search stories</label>
-          <input id="siteSearch" type="search" placeholder="Search" aria-label="Search stories">
-        </div>
       </nav>
     </div>
   </header>
@@ -88,13 +71,26 @@
   </section>
 
   <main id="main-content" class="container">
-    <section class="hero-section" aria-label="Featured stories">
-      <div class="hero-slider-viewport">
-        <div id="heroSlides" class="hero-slides"></div>
-        <button class="hero-nav prev" type="button" data-direction="-1" aria-label="Previous story">‹</button>
-        <button class="hero-nav next" type="button" data-direction="1" aria-label="Next story">›</button>
-        <div id="heroDots" class="hero-dots" aria-label="Slide navigation"></div>
+    <section class="hero-showcase" aria-label="Featured stories and latest updates">
+      <div class="hero-section" aria-label="Featured stories">
+        <div class="hero-slider-viewport">
+          <div id="heroSlides" class="hero-slides"></div>
+          <button class="hero-nav prev" type="button" data-direction="-1" aria-label="Previous story">‹</button>
+          <button class="hero-nav next" type="button" data-direction="1" aria-label="Next story">›</button>
+          <div id="heroDots" class="hero-dots" aria-label="Slide navigation"></div>
+        </div>
       </div>
+
+      <aside class="latest-updates-panel" aria-labelledby="latestUpdatesTitle">
+        <div class="latest-updates-header">
+          <div>
+            <p class="latest-updates-kicker">Latest Updates</p>
+            <h2 id="latestUpdatesTitle">Fresh reporting for your next read</h2>
+          </div>
+          <a class="latest-updates-link" href="/news.html">View all</a>
+        </div>
+        <div id="latestUpdatesList" class="latest-updates-list" aria-live="polite"></div>
+      </aside>
     </section>
 
     <section class="section-block premium-categories-section" aria-labelledby="premiumCategoriesTitle">
