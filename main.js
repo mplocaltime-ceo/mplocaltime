@@ -5,11 +5,12 @@ const app = (() => {
     on: (el, event, fn) => el && el.addEventListener(event, fn),
   };
 
-  const escapeHTML = (text) => {
-    const div = document.createElement('div');
-    div.textContent = text || '';
-    return div.innerHTML;
-  };
+  const escapeHTML = (text) => String(text ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 
   const initMenu = () => {
     const button = utils.qs('.nav-toggle');
@@ -275,22 +276,28 @@ const app = (() => {
     const marquee = utils.qs('.breaking-marquee');
     if (!container || !marquee) return;
 
+    const buildMarkup = (stories) => {
+      const featured = stories[0] || fallbackBreakingStories[0];
+      const rest = stories.slice(1);
+      const featuredMarkup = `
+        <a class="breaking-news-feature" href="/news.html?story=${featured.id || featured.title}" aria-label="${escapeHTML(featured.title)} ${escapeHTML(featured.category)} ${escapeHTML(formatRelativeTime(featured.submittedAt))}">
+          <span class="breaking-news-feature-label">LIVE</span>
+          <span class="breaking-news-feature-title">${escapeHTML(featured.title)}</span>
+          <span class="breaking-news-feature-meta">${escapeHTML(featured.category)} • ${escapeHTML(formatRelativeTime(featured.submittedAt))}</span>
+        </a>`;
+      const secondaryMarkup = rest.length ? rest.map((story) => `
+        <a class="breaking-news-link" href="/news.html?story=${story.id || story.title}" aria-label="${escapeHTML(story.title)} ${escapeHTML(story.category)} ${escapeHTML(formatRelativeTime(story.submittedAt))}">
+          <span class="breaking-news-title">${escapeHTML(story.title)}</span>
+          <span class="breaking-news-meta">${escapeHTML(story.category)} • ${escapeHTML(formatRelativeTime(story.submittedAt))}</span>
+        </a>
+      `).join('<span class="breaking-news-separator" aria-hidden="true">•</span>') : '';
+
+      return `<div class="breaking-news-group">${featuredMarkup}${secondaryMarkup ? `<span class="breaking-news-divider" aria-hidden="true"></span>${secondaryMarkup}` : ''}</div><div class="breaking-news-group" aria-hidden="true">${featuredMarkup}${secondaryMarkup ? `<span class="breaking-news-divider" aria-hidden="true"></span>${secondaryMarkup}` : ''}</div>`;
+    };
+
     const now = Date.now();
     if (breakingNewsCache.data && now - breakingNewsCache.timestamp < 60000) {
-      const stories = breakingNewsCache.data;
-      container.innerHTML = `
-        <div class="breaking-news-group">${stories.map((story) => `
-          <a class="breaking-news-link" href="/news.html?story=${story.id || story.title}" aria-label="${escapeHTML(story.title)} ${escapeHTML(story.category)} ${escapeHTML(formatRelativeTime(story.submittedAt))}">
-            <span class="breaking-news-title">${escapeHTML(story.title)}</span>
-            <span class="breaking-news-meta">${escapeHTML(story.category)} • ${escapeHTML(formatRelativeTime(story.submittedAt))}</span>
-          </a>
-        `).join('<span class="breaking-news-separator" aria-hidden="true">•</span>')}</div>
-        <div class="breaking-news-group" aria-hidden="true">${stories.map((story) => `
-          <a class="breaking-news-link" href="/news.html?story=${story.id || story.title}" aria-label="${escapeHTML(story.title)} ${escapeHTML(story.category)} ${escapeHTML(formatRelativeTime(story.submittedAt))}">
-            <span class="breaking-news-title">${escapeHTML(story.title)}</span>
-            <span class="breaking-news-meta">${escapeHTML(story.category)} • ${escapeHTML(formatRelativeTime(story.submittedAt))}</span>
-          </a>
-        `).join('<span class="breaking-news-separator" aria-hidden="true">•</span>')}</div>`;
+      container.innerHTML = buildMarkup(breakingNewsCache.data);
       return;
     }
 
@@ -309,14 +316,7 @@ const app = (() => {
       });
 
     const stories = await breakingNewsPromise;
-    const content = stories.map((story) => `
-      <a class="breaking-news-link" href="/news.html?story=${story.id || story.title}" aria-label="${escapeHTML(story.title)} ${escapeHTML(story.category)} ${escapeHTML(formatRelativeTime(story.submittedAt))}">
-        <span class="breaking-news-title">${escapeHTML(story.title)}</span>
-        <span class="breaking-news-meta">${escapeHTML(story.category)} • ${escapeHTML(formatRelativeTime(story.submittedAt))}</span>
-      </a>
-    `).join('<span class="breaking-news-separator" aria-hidden="true">•</span>');
-
-    container.innerHTML = `<div class="breaking-news-group">${content}</div><div class="breaking-news-group" aria-hidden="true">${content}</div>`;
+    container.innerHTML = buildMarkup(stories);
 
     const pauseMarquee = () => marquee.classList.add('is-paused');
     const resumeMarquee = () => marquee.classList.remove('is-paused');
@@ -324,6 +324,48 @@ const app = (() => {
     marquee.onmouseleave = resumeMarquee;
     marquee.onfocusin = pauseMarquee;
     marquee.onfocusout = resumeMarquee;
+  };
+
+  const buildLatestUpdatesMarkup = (stories = []) => {
+    const list = Array.isArray(stories) ? stories : [];
+    const cards = list
+      .filter(isPublishedStory)
+      .slice(0, 4)
+      .map((story, index) => {
+        const normalizedStory = normalizeStory(story, index);
+        return `
+          <a class="latest-update-card" href="/news.html?story=${normalizedStory.id}" aria-label="${escapeHTML(normalizedStory.title)}">
+            <img src="${normalizedStory.image}" alt="${escapeHTML(normalizedStory.title)}" loading="lazy" decoding="async" sizes="(max-width: 768px) 100vw, 50vw">
+            <div class="latest-update-card-body">
+              <span class="latest-update-badge">${escapeHTML(normalizedStory.category)}</span>
+              <h3>${escapeHTML(normalizedStory.title)}</h3>
+              <div class="latest-update-meta">
+                <span>${escapeHTML(normalizedStory.date)}</span>
+                <span>•</span>
+                <span>${normalizedStory.readingTime} min read</span>
+              </div>
+              <div class="latest-update-footer">
+                <span>${escapeHTML(normalizedStory.excerpt)}</span>
+                <span class="latest-update-arrow">→</span>
+              </div>
+            </div>
+          </a>`;
+      })
+      .join('');
+
+    return cards || '<p class="section-subtitle">No updates available right now.</p>';
+  };
+
+  const renderLatestUpdates = async (excludedIds = []) => {
+    const container = utils.qs('#latestUpdatesList');
+    if (!container) return;
+
+    const stories = await fetchLatestStories();
+    const visibleStories = (stories || [])
+      .filter(isPublishedStory)
+      .filter((story) => !(excludedIds.includes(story.id) || heroStoryIds.includes(story.id)));
+
+    container.innerHTML = buildLatestUpdatesMarkup(visibleStories.length ? visibleStories : fallbackStories);
   };
 
   const initHeroSlider = async () => {
@@ -483,6 +525,7 @@ const app = (() => {
     await renderBreakingNews();
     const heroIds = await initHeroSlider();
     heroStoryIds = heroIds || [];
+    await renderLatestUpdates(heroStoryIds);
     await renderCategorySections(heroStoryIds);
     window.clearInterval(categoryRefreshTimer);
     categoryRefreshTimer = window.setInterval(() => {
@@ -490,7 +533,11 @@ const app = (() => {
     }, 60000);
   };
 
-  return { init };
+  return { init, buildLatestUpdatesMarkup };
 })();
 
-document.addEventListener('DOMContentLoaded', app.init);
+if (typeof document !== 'undefined') {
+  document.addEventListener('DOMContentLoaded', app.init);
+}
+
+module.exports = app;
