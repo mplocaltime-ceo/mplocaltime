@@ -61,12 +61,15 @@
   </header>
 
   <section class="breaking-strip" aria-label="Breaking news">
-    <div class="container ticker-row">
-      <span class="breaking-label">Breaking</span>
-      <div class="ticker-wrap">
-        <p class="ticker-text">Public hearings continue as residents call for faster service delivery across Mpumalanga communities • New housing and infrastructure priorities gain momentum • Local leaders push for stronger accountability</p>
+    <div class="container breaking-ribbon">
+      <div class="breaking-pill" aria-hidden="true">
+        <span class="breaking-pill-dot"></span>
+        <span>LIVE</span>
+        <span class="breaking-pill-label">Breaking News</span>
       </div>
-      <a href="/news.html">Read more</a>
+      <div class="breaking-marquee" aria-live="polite" aria-label="Breaking news headlines">
+        <div id="breakingNewsTrack" class="breaking-track"></div>
+      </div>
     </div>
   </section>
 

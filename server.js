@@ -46,6 +46,7 @@ async function initializeDatabase() {
         featured_image TEXT,
         excerpt TEXT,
         reading_time INTEGER DEFAULT 5,
+        is_breaking INTEGER DEFAULT 0,
         FOREIGN KEY(author_id) REFERENCES users(id) ON DELETE SET NULL
       );
       CREATE TABLE IF NOT EXISTS comments (
@@ -73,6 +74,11 @@ async function initializeDatabase() {
       await db.run(`UPDATE users SET role = 'user' WHERE role IS NULL`);
     }
 
+    const storyColumns = await db.all('PRAGMA table_info(stories)');
+    if (!storyColumns.some((column) => column.name === 'is_breaking')) {
+      await db.run('ALTER TABLE stories ADD COLUMN is_breaking INTEGER DEFAULT 0');
+    }
+
     const existingAdmin = await db.get(`SELECT id FROM users WHERE username = ?`, [DEFAULT_ADMIN.username]);
     if (!existingAdmin) {
       const hash = await bcrypt.hash(DEFAULT_ADMIN.passwordEnv, 10);
@@ -96,6 +102,7 @@ async function initializeDatabase() {
           excerpt: 'Residents in the Lowveld say the new medical outreach programme is shrinking delays and bringing specialist care closer to home.',
           featured_image: 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=1400&q=80',
           reading_time: 4,
+          is_breaking: 1,
         },
         {
           title: 'Local roads and transport links gain momentum ahead of the busy season',
@@ -104,6 +111,7 @@ async function initializeDatabase() {
           excerpt: 'Business owners and commuters say the latest upgrades are cutting travel time and improving access to key growth corridors.',
           featured_image: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=1400&q=80',
           reading_time: 5,
+          is_breaking: 1,
         },
         {
           title: 'School and youth programmes expand as community leaders back local learning',
@@ -112,15 +120,16 @@ async function initializeDatabase() {
           excerpt: 'New partnerships are helping young people stay engaged through mentorship, arts and practical learning opportunities.',
           featured_image: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1400&q=80',
           reading_time: 3,
+          is_breaking: 0,
         }
       ];
 
       const user = await db.get(`SELECT id FROM users WHERE username = 'admin' LIMIT 1`);
       for (const story of sampleStories) {
         await db.run(`
-          INSERT INTO stories (title, category, content, author_id, submittedAt, views, featured, featured_image, excerpt, reading_time)
-          VALUES (?, ?, ?, ?, ?, 0, 0, ?, ?, ?)
-        `, [story.title, story.category, story.content, user?.id || null, now, story.featured_image, story.excerpt, story.reading_time]);
+          INSERT INTO stories (title, category, content, author_id, submittedAt, views, featured, featured_image, excerpt, reading_time, is_breaking)
+          VALUES (?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?)
+        `, [story.title, story.category, story.content, user?.id || null, now, story.featured_image, story.excerpt, story.reading_time, story.is_breaking || 0]);
       }
     }
   } finally {
@@ -756,6 +765,44 @@ app.get('/api/featured-story', async (req, res) => {
   });
 });
 
+app.get('/api/breaking-news', async (req, res) => {
+  return withDB(async (db) => {
+    const breakingStories = await db.all(`
+      SELECT s.*, u.username as author,
+             (SELECT COUNT(*) FROM comments WHERE story_id = s.id) as comments
+      FROM stories s
+      LEFT JOIN users u ON u.id = s.author_id
+      WHERE s.featured = 0 AND s.is_breaking = 1
+      ORDER BY s.submittedAt DESC LIMIT 6
+    `);
+
+    const dedupedBreakingStories = (breakingStories || [])
+      .filter((story) => story && story.title && (story.content || story.excerpt || story.featured_image))
+      .filter((story, index, array) => array.findIndex((candidate) => (candidate.title || '').toLowerCase() === (story.title || '').toLowerCase()) === index)
+      .map((story) => ({ ...story, comments: Number(story.comments || 0) }));
+
+    if (dedupedBreakingStories.length) {
+      return res.json({ stories: dedupedBreakingStories });
+    }
+
+    const latestStories = await db.all(`
+      SELECT s.*, u.username as author,
+             (SELECT COUNT(*) FROM comments WHERE story_id = s.id) as comments
+      FROM stories s
+      LEFT JOIN users u ON u.id = s.author_id
+      WHERE s.featured = 0
+      ORDER BY s.submittedAt DESC LIMIT 6
+    `);
+
+    const dedupedLatestStories = (latestStories || [])
+      .filter((story) => story && story.title && (story.content || story.excerpt || story.featured_image))
+      .filter((story, index, array) => array.findIndex((candidate) => (candidate.title || '').toLowerCase() === (story.title || '').toLowerCase()) === index)
+      .map((story) => ({ ...story, comments: Number(story.comments || 0) }));
+
+    return res.json({ stories: dedupedLatestStories });
+  });
+});
+
 // Get latest stories (excluding featured or a specific story ID)
 app.get('/api/latest-stories', async (req, res) => {
   const excludeId = req.query.exclude || null;
@@ -797,3 +844,4 @@ if (require.main === module) {
 }
 
 module.exports = app;
+module.exports.initializeDatabase = initializeDatabase;

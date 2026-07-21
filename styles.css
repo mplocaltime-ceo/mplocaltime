@@ -285,47 +285,166 @@ button {
 }
 
 .breaking-strip {
-  background: linear-gradient(90deg, var(--accent) 0%, var(--accent-dark) 100%);
-  color: white;
-  padding: 12px 0;
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
   overflow: hidden;
 }
 
-.ticker-row {
+.breaking-ribbon {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 16px;
+  min-height: 48px;
+  padding: 10px 0;
 }
 
-.ticker-wrap {
-  flex: 1;
-  overflow: hidden;
-  position: relative;
-}
-
-.ticker-text {
-  margin: 0;
-  font-weight: 600;
-  white-space: nowrap;
-  animation: ticker-scroll 16s linear infinite;
-}
-
-.breaking-label {
+.breaking-pill {
   display: inline-flex;
   align-items: center;
-  padding: 4px 8px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.16);
-  font-size: 0.78rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  gap: 8px;
   flex-shrink: 0;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  box-shadow: 0 10px 24px rgba(220, 38, 38, 0.2);
 }
 
-.breaking-strip a {
-  color: white;
+.breaking-pill-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.65);
+  animation: breaking-pulse 1.8s ease-out infinite;
+}
+
+.breaking-pill-label {
+  display: inline-block;
+  margin-left: 2px;
+}
+
+.breaking-marquee {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.breaking-track {
+  display: flex;
+  align-items: center;
+  width: max-content;
+  gap: 20px;
+  white-space: nowrap;
+  animation: breaking-marquee 24s linear infinite;
+  will-change: transform;
+}
+
+.breaking-news-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.breaking-news-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #111827;
+  font-size: 0.96rem;
   font-weight: 600;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.breaking-news-link:hover,
+.breaking-news-link:focus-visible {
+  color: #2563eb;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.breaking-news-title {
+  color: inherit;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.breaking-news-meta {
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.breaking-news-separator {
+  color: #cbd5e1;
+  font-weight: 700;
+}
+
+.breaking-marquee.is-paused .breaking-track {
+  animation-play-state: paused;
+}
+
+@keyframes breaking-marquee {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+@keyframes breaking-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(255, 255, 255, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
+  }
+}
+
+@media (max-width: 768px) {
+  .breaking-ribbon {
+    gap: 12px;
+    min-height: 44px;
+  }
+
+  .breaking-pill {
+    padding: 6px 10px;
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+  }
+
+  .breaking-marquee {
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .breaking-marquee::-webkit-scrollbar {
+    display: none;
+  }
+
+  .breaking-track {
+    animation: none;
+    transform: none;
+    gap: 16px;
+  }
+
+  .breaking-news-link {
+    gap: 6px;
+    font-size: 0.9rem;
+  }
+
+  .breaking-news-title {
+    max-width: 58vw;
+  }
 }
 
 .hero-showcase {
@@ -731,51 +850,6 @@ button {
   border: 1px solid var(--border);
   background: var(--surface);
 }
-
-.breaking-strip {
-  background: linear-gradient(90deg, var(--accent) 0%, var(--accent-dark) 100%);
-  color: white;
-  padding: 12px 0;
-  overflow: hidden;
-}
-
-.ticker-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.ticker-wrap {
-  flex: 1;
-  overflow: hidden;
-  position: relative;
-}
-
-.ticker-text {
-  margin: 0;
-  font-weight: 600;
-  white-space: nowrap;
-  animation: ticker-scroll 16s linear infinite;
-}
-
-.breaking-label {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 8px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.16);
-  font-size: 0.78rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  flex-shrink: 0;
-}
-
-.breaking-strip a {
-  color: white;
-  font-weight: 600;
-}
-
 
 .hero-slides {
   position: absolute;

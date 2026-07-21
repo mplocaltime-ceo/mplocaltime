@@ -197,7 +197,53 @@ const app = (() => {
   let heroStoryIds = [];
   let latestStoriesCache = { data: null, timestamp: 0 };
   let latestStoriesPromise = null;
+  let breakingNewsCache = { data: null, timestamp: 0 };
+  let breakingNewsPromise = null;
   let categoryRefreshTimer = null;
+
+  const formatRelativeTime = (value) => {
+    const parsed = value ? new Date(value) : null;
+    if (!parsed || Number.isNaN(parsed.getTime())) return 'just now';
+
+    const diffSeconds = Math.floor((Date.now() - parsed.getTime()) / 1000);
+    const units = [
+      [31536000, 'year'],
+      [2592000, 'month'],
+      [86400, 'day'],
+      [3600, 'hour'],
+      [60, 'minute'],
+    ];
+
+    for (const [seconds, unit] of units) {
+      const amount = Math.floor(diffSeconds / seconds);
+      if (amount >= 1) return `${amount} ${unit}${amount === 1 ? '' : 's'} ago`;
+    }
+
+    return 'just now';
+  };
+
+  const fallbackBreakingStories = [
+    {
+      title: 'Public hearings continue as residents press for stronger service delivery',
+      category: 'Community',
+      submittedAt: new Date(Date.now() - 10 * 60000).toISOString(),
+    },
+    {
+      title: 'Housing projects receive fresh provincial funding support',
+      category: 'Business',
+      submittedAt: new Date(Date.now() - 22 * 60000).toISOString(),
+    },
+    {
+      title: 'Road upgrades continue across municipalities as travel improves',
+      category: 'Infrastructure',
+      submittedAt: new Date(Date.now() - 60 * 60000).toISOString(),
+    },
+    {
+      title: 'Education department launches digital learning initiative',
+      category: 'Education',
+      submittedAt: new Date(Date.now() - 90 * 60000).toISOString(),
+    },
+  ];
 
   const fetchLatestStories = async () => {
     const now = Date.now();
@@ -222,6 +268,62 @@ const app = (() => {
       });
 
     return latestStoriesPromise;
+  };
+
+  const renderBreakingNews = async () => {
+    const container = utils.qs('#breakingNewsTrack');
+    const marquee = utils.qs('.breaking-marquee');
+    if (!container || !marquee) return;
+
+    const now = Date.now();
+    if (breakingNewsCache.data && now - breakingNewsCache.timestamp < 60000) {
+      const stories = breakingNewsCache.data;
+      container.innerHTML = `
+        <div class="breaking-news-group">${stories.map((story) => `
+          <a class="breaking-news-link" href="/news.html?story=${story.id || story.title}" aria-label="${escapeHTML(story.title)} ${escapeHTML(story.category)} ${escapeHTML(formatRelativeTime(story.submittedAt))}">
+            <span class="breaking-news-title">${escapeHTML(story.title)}</span>
+            <span class="breaking-news-meta">${escapeHTML(story.category)} • ${escapeHTML(formatRelativeTime(story.submittedAt))}</span>
+          </a>
+        `).join('<span class="breaking-news-separator" aria-hidden="true">•</span>')}</div>
+        <div class="breaking-news-group" aria-hidden="true">${stories.map((story) => `
+          <a class="breaking-news-link" href="/news.html?story=${story.id || story.title}" aria-label="${escapeHTML(story.title)} ${escapeHTML(story.category)} ${escapeHTML(formatRelativeTime(story.submittedAt))}">
+            <span class="breaking-news-title">${escapeHTML(story.title)}</span>
+            <span class="breaking-news-meta">${escapeHTML(story.category)} • ${escapeHTML(formatRelativeTime(story.submittedAt))}</span>
+          </a>
+        `).join('<span class="breaking-news-separator" aria-hidden="true">•</span>')}</div>`;
+      return;
+    }
+
+    if (breakingNewsPromise) return breakingNewsPromise;
+
+    breakingNewsPromise = fetch('/api/breaking-news')
+      .then(async (response) => {
+        const payload = await response.json();
+        const stories = Array.isArray(payload.stories) && payload.stories.length ? payload.stories : fallbackBreakingStories;
+        breakingNewsCache = { data: stories, timestamp: Date.now() };
+        return stories;
+      })
+      .catch(() => fallbackBreakingStories)
+      .finally(() => {
+        breakingNewsPromise = null;
+      });
+
+    const stories = await breakingNewsPromise;
+    const content = stories.map((story) => `
+      <a class="breaking-news-link" href="/news.html?story=${story.id || story.title}" aria-label="${escapeHTML(story.title)} ${escapeHTML(story.category)} ${escapeHTML(formatRelativeTime(story.submittedAt))}">
+        <span class="breaking-news-title">${escapeHTML(story.title)}</span>
+        <span class="breaking-news-meta">${escapeHTML(story.category)} • ${escapeHTML(formatRelativeTime(story.submittedAt))}</span>
+      </a>
+    `).join('<span class="breaking-news-separator" aria-hidden="true">•</span>');
+
+    container.innerHTML = `<div class="breaking-news-group">${content}</div><div class="breaking-news-group" aria-hidden="true">${content}</div>`;
+
+    const pauseMarquee = () => marquee.classList.add('is-paused');
+    const resumeMarquee = () => marquee.classList.remove('is-paused');
+    marquee.onmouseenter = pauseMarquee;
+    marquee.onmouseleave = resumeMarquee;
+    marquee.onfocusin = pauseMarquee;
+    marquee.onfocusout = resumeMarquee;
   };
 
   const initHeroSlider = async () => {
@@ -378,6 +480,7 @@ const app = (() => {
     initSearch();
     initScroll();
     initShare();
+    await renderBreakingNews();
     const heroIds = await initHeroSlider();
     heroStoryIds = heroIds || [];
     await renderCategorySections(heroStoryIds);

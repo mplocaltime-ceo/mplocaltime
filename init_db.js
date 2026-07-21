@@ -24,6 +24,7 @@ const { init } = require('./db');
       featured_image TEXT,
       excerpt TEXT,
       reading_time INTEGER DEFAULT 5,
+      is_breaking INTEGER DEFAULT 0,
       FOREIGN KEY(author_id) REFERENCES users(id) ON DELETE SET NULL
     );
     CREATE TABLE IF NOT EXISTS comments (
