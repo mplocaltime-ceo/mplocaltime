@@ -95,107 +95,16 @@
         <button class="hero-nav next" type="button" data-direction="1" aria-label="Next story">›</button>
         <div id="heroDots" class="hero-dots" aria-label="Slide navigation"></div>
       </div>
-      <aside class="hero-side-stack">
-        <article class="side-card accent-card">
-          <p class="section-kicker">Trending today</p>
-          <h3>Service delivery and public spending remain the province’s most watched stories.</h3>
-          <p>Residents are tracking road repairs, clinic access and school upgrades as the next round of public decisions takes shape.</p>
-        </article>
-        <article class="side-card">
-          <p class="section-kicker">Editor's choice</p>
-          <h3>From school boards to municipal budgets, local voices are shaping the week’s agenda.</h3>
-          <p>Community readers are turning to grounded reporting that connects everyday life with public accountability.</p>
-        </article>
-      </aside>
     </section>
 
-    <section class="insight-strip" aria-label="Newsroom snapshot">
-      <div class="insight-pill">Live bulletin • 14 updates from the newsroom today</div>
-      <div class="insight-stats">
-        <div><strong>16.8k</strong><span>weekly readers</span></div>
-        <div><strong>4</strong><span>editorial desks</span></div>
-        <div><strong>24/7</strong><span>community alerts</span></div>
-      </div>
-    </section>
-
-    <section class="section-block">
+    <section class="section-block premium-categories-section" aria-labelledby="premiumCategoriesTitle">
       <div class="section-headline">
         <div>
-          <h2 class="section-title">Trending stories</h2>
-          <p class="section-subtitle">The stories gaining momentum across the province.</p>
-        </div>
-        <a class="link-button" href="/news.html">View all →</a>
-      </div>
-      <div id="trendingStories" class="trending-grid"></div>
-    </section>
-
-    <section class="editorial-grid">
-      <article class="editorial-feature">
-        <p class="section-kicker">Editor's pick</p>
-        <h3>Why trusted local reporting matters in a fast-moving province</h3>
-        <p>The stories that reach communities first often shape the next round of public decisions, from school planning to municipal spending and everyday safety.</p>
-        <a class="btn primary" href="/news.html">Read the full analysis</a>
-      </article>
-      <div class="editorial-stack">
-        <article class="mini-card">
-          <p class="section-kicker">Most read</p>
-          <h3>Road upgrades bring relief to local commuters across the Lowveld</h3>
-          <p>Improved travel routes are cutting delays and reshaping how residents move between towns and work sites.</p>
-        </article>
-        <article class="mini-card">
-          <p class="section-kicker">Popular tags</p>
-          <div class="tag-list">
-            <span>Politics</span><span>Business</span><span>Education</span><span>Health</span><span>Sport</span>
-          </div>
-        </article>
-      </div>
-    </section>
-
-    <section class="section-block">
-      <div class="section-headline">
-        <div>
-          <h2 class="section-title">Latest news</h2>
-          <p class="section-subtitle">A premium editorial layout for the stories shaping the week.</p>
+          <h2 id="premiumCategoriesTitle" class="section-title">The Daily Brief</h2>
+          <p class="section-subtitle">Premium reporting across business, arts, sports and community life in Mpumalanga.</p>
         </div>
       </div>
-      <div id="latestNewsGrid" class="latest-news-grid"></div>
-    </section>
-
-    <section class="ad-block" aria-label="Sponsored content">
-      <div class="ad-mark">Sponsored</div>
-      <p>Local business and community partnerships continue to drive the next chapter of growth in Mpumalanga.</p>
-    </section>
-
-    <section class="section-block compact-spotlight">
-      <div class="section-headline">
-        <div>
-          <h2 class="section-title">Community focus</h2>
-          <p class="section-subtitle">A shorter newsroom view that keeps the page clean and focused.</p>
-        </div>
-      </div>
-      <div class="compact-spotlight-grid">
-        <article class="mini-card">
-          <p class="section-kicker">What readers are watching</p>
-          <h3>Public projects, local services and education remain the biggest topics of conversation.</h3>
-        </article>
-        <article class="mini-card">
-          <p class="section-kicker">In the newsroom</p>
-          <h3>Editors are preparing the next wave of community-led updates and verified public notices.</h3>
-        </article>
-      </div>
-    </section>
-
-    <section class="newsletter-card" aria-label="Newsletter signup">
-      <div>
-        <p class="section-kicker">Stay informed</p>
-        <h2>Get local briefings in your inbox</h2>
-        <p>Receive the Monday Briefing, live community notices and the stories shaping local policy, business and culture.</p>
-      </div>
-      <form class="newsletter-form" id="newsletterForm">
-        <label class="visually-hidden" for="newsletterEmail">Email address</label>
-        <input id="newsletterEmail" type="email" placeholder="Enter your email" required />
-        <button class="btn primary" type="submit">Subscribe</button>
-      </form>
+      <div id="categoryNewsGrid" class="category-news-grid" aria-live="polite"></div>
     </section>
   </main>
 

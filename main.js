@@ -100,61 +100,85 @@ const app = (() => {
 
   const fallbackStories = [
     {
-      title: 'Mbombela clinics see faster access after mobile health rollout',
-      excerpt: 'Residents in the Lowveld say the new medical outreach programme is shrinking delays and bringing specialist care closer to home.',
-      category: 'Health',
-      author: 'Nokuthula Mkhize',
-      submittedAt: '2026-07-18T08:30:00Z',
-      reading_time: 4,
-      featured_image: 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=1400&q=80',
-    },
-    {
-      title: 'Local roads and transport links gain momentum ahead of the busy season',
-      excerpt: 'Business owners and commuters say the latest upgrades are cutting travel time and improving access to key growth corridors.',
+      title: 'Mpumalanga business leaders back new growth corridor',
+      excerpt: 'New investment and logistics partnerships are raising expectations for entrepreneurs across the Lowveld.',
       category: 'Business',
       author: 'Sipho Dlamini',
-      submittedAt: '2026-07-16T10:00:00Z',
-      reading_time: 5,
-      featured_image: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=1400&q=80',
+      submittedAt: '2026-07-18T08:30:00Z',
+      reading_time: 4,
+      featured_image: 'https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?auto=format&fit=crop&w=1600&q=80',
     },
     {
-      title: 'School and youth programmes expand as community leaders back local learning',
-      excerpt: 'New partnerships are helping young people stay engaged through mentorship, arts and practical learning opportunities.',
-      category: 'Education',
+      title: 'Local arts collective brings a new theatre season to life',
+      excerpt: 'Creative talent from across the province is turning community spaces into vibrant cultural destinations.',
+      category: 'Arts',
       author: 'Ayanda Mbatha',
-      submittedAt: '2026-07-15T14:00:00Z',
+      submittedAt: '2026-07-16T10:00:00Z',
       reading_time: 3,
-      featured_image: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1400&q=80',
+      featured_image: 'https://images.unsplash.com/photo-1499364615650-ec38552f4f34?auto=format&fit=crop&w=1600&q=80',
+    },
+    {
+      title: 'Rugby and school sport programmes gain momentum',
+      excerpt: 'Fresh competition and coaching support are helping schools and clubs build stronger community pride.',
+      category: 'Sports',
+      author: 'Lungisani Ndlovu',
+      submittedAt: '2026-07-15T14:00:00Z',
+      reading_time: 2,
+      featured_image: 'https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&w=1600&q=80',
+    },
+    {
+      title: 'Community centre expands youth mentorship and food relief',
+      excerpt: 'Volunteers and local leaders are strengthening support networks for families across the municipality.',
+      category: 'Community',
+      author: 'Nokuthula Mkhize',
+      submittedAt: '2026-07-14T12:00:00Z',
+      reading_time: 4,
+      featured_image: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=1600&q=80',
     },
   ];
 
-  const pulseCategoryOrder = ['Business', 'Arts', 'Sports', 'Community'];
+  const categoryDefinitions = [
+    {
+      id: 'business',
+      title: 'Business',
+      description: 'Latest business, investment, entrepreneurship and economic news from across Mpumalanga.',
+      icon: '💼',
+      accentClass: 'business',
+      href: '/news.html?category=business',
+    },
+    {
+      id: 'arts',
+      title: 'Arts',
+      description: 'Culture, entertainment, music, fashion, theatre and creative stories from local communities.',
+      icon: '🎨',
+      accentClass: 'arts',
+      href: '/news.html?category=arts',
+    },
+    {
+      id: 'sports',
+      title: 'Sports',
+      description: 'Latest sporting news, tournaments, schools, clubs and community competitions.',
+      icon: '🏅',
+      accentClass: 'sports',
+      href: '/news.html?category=sports',
+    },
+    {
+      id: 'community',
+      title: 'Community',
+      description: 'Community development, public services, local events and inspiring stories from every municipality.',
+      icon: '🤝',
+      accentClass: 'community',
+      href: '/news.html?category=community',
+    },
+  ];
 
-  const getPulseStories = (stories) => {
-    const targetStories = stories.filter((story) => {
-      const category = String(story.category || '').trim().toLowerCase();
-      return pulseCategoryOrder.some((name) => name.toLowerCase() === category);
-    });
+  const normalizeCategory = (category = '') => String(category || '').trim().toLowerCase();
 
-    const orderedStories = pulseCategoryOrder.flatMap((category) => {
-      const matches = targetStories.filter((story) => String(story.category || '').trim().toLowerCase() === category.toLowerCase());
-      return matches.slice(0, 1);
-    });
-
-    const fallbackMatches = fallbackStories.filter((story) => {
-      const category = String(story.category || '').trim().toLowerCase();
-      return pulseCategoryOrder.some((name) => name.toLowerCase() === category);
-    });
-
-    const combined = [...orderedStories];
-    fallbackMatches.forEach((story) => {
-      const alreadyIncluded = combined.some((item) => item.title === story.title);
-      if (combined.length < 4 && !alreadyIncluded) {
-        combined.push(story);
-      }
-    });
-
-    return combined.slice(0, 4).map((story, index) => normalizeStory(story, index));
+  const isPublishedStory = (story) => {
+    const status = String(story?.status || story?.publicationStatus || '').trim().toLowerCase();
+    if (['draft', 'pending', 'unpublished'].includes(status)) return false;
+    if (story?.published === false || story?.published === 0) return false;
+    return Boolean(story?.title && (story?.content || story?.excerpt || story?.featured_image));
   };
 
   const normalizeStory = (story, fallbackIndex = 0) => ({
@@ -166,10 +190,39 @@ const app = (() => {
     readingTime: story.reading_time || 4,
     image: story.featured_image || '/logo.png',
     views: Number(story.views || 0),
+    comments: Number(story.comments || 0),
     id: story.id || fallbackIndex + 1,
   });
 
   let heroStoryIds = [];
+  let latestStoriesCache = { data: null, timestamp: 0 };
+  let latestStoriesPromise = null;
+  let categoryRefreshTimer = null;
+
+  const fetchLatestStories = async () => {
+    const now = Date.now();
+    if (latestStoriesCache.data && now - latestStoriesCache.timestamp < 60000) {
+      return latestStoriesCache.data;
+    }
+
+    if (latestStoriesPromise) {
+      return latestStoriesPromise;
+    }
+
+    latestStoriesPromise = fetch('/api/latest-stories')
+      .then(async (response) => {
+        const payload = await response.json();
+        const stories = Array.isArray(payload.stories) && payload.stories.length ? payload.stories : fallbackStories;
+        latestStoriesCache = { data: stories, timestamp: Date.now() };
+        return stories;
+      })
+      .catch(() => fallbackStories)
+      .finally(() => {
+        latestStoriesPromise = null;
+      });
+
+    return latestStoriesPromise;
+  };
 
   const initHeroSlider = async () => {
     const container = utils.qs('#heroSlides');
@@ -246,67 +299,76 @@ const app = (() => {
     return [];
   };
 
-  const initLatestNews = async (excludedIds = []) => {
-    const latestGrid = utils.qs('#latestNewsGrid');
-    if (!latestGrid) return;
+  const getCategoryStories = (stories, categoryId, excludedIds = []) => {
+    const filteredStories = (stories || [])
+      .filter(isPublishedStory)
+      .filter((story) => !(excludedIds.includes(story.id) || heroStoryIds.includes(story.id)))
+      .filter((story) => normalizeCategory(story.category) === categoryId);
 
-    try {
-      const latestRes = await fetch('/api/latest-stories');
-      const latestData = await latestRes.json();
-      const stories = latestData.stories?.length ? latestData.stories : fallbackStories;
-      const pulseStories = getPulseStories(stories.filter(story => !(excludedIds.includes(story.id) || heroStoryIds.includes(story.id))));
-      const finalStories = pulseStories.length
-        ? pulseStories
-        : getPulseStories(stories.slice(0, 4));
+    const categoryStories = filteredStories.slice(0, 4).map((story, index) => normalizeStory(story, index));
+    if (categoryStories.length) return categoryStories;
 
-      latestGrid.innerHTML = finalStories.map((story) => `
-        <article class="latest-card pulse-card" data-search="${escapeHTML(story.title)} ${escapeHTML(story.category)}">
-          <img src="${story.image}" alt="${escapeHTML(story.title)}" loading="lazy">
-          <div class="latest-card-body">
-            <span class="category-pill">${escapeHTML(story.category)}</span>
-            <h3>${escapeHTML(story.title)}</h3>
-            <p>${escapeHTML(story.excerpt)}</p>
-            <div class="story-meta">
-              <span>By ${escapeHTML(story.author)}</span>
-              <span>•</span>
-              <span>${escapeHTML(story.date)}</span>
-            </div>
-            <div class="pulse-footer">
-              <div class="story-stats">
-                <span>${story.readingTime} min read</span>
-                <span>•</span>
-                <span>${story.views || 0} views</span>
-              </div>
-              <div class="pulse-actions">
-                <button class="icon-button" type="button" data-share data-url="${window.location.href}">Share</button>
-                <a class="btn primary small" href="/news.html">Read more</a>
+    const fallbackCategoryStories = fallbackStories
+      .filter((story) => normalizeCategory(story.category) === categoryId)
+      .slice(0, 4)
+      .map((story, index) => normalizeStory(story, index));
+
+    return fallbackCategoryStories;
+  };
+
+  const renderCategorySections = async (excludedIds = []) => {
+    const container = utils.qs('#categoryNewsGrid');
+    if (!container) return;
+
+    const stories = await fetchLatestStories();
+    const markup = categoryDefinitions.map((category) => {
+      const categoryStories = getCategoryStories(stories, category.id, excludedIds);
+      return `
+        <article class="category-panel ${category.accentClass}" aria-labelledby="${category.id}-title">
+          <div class="category-panel-head">
+            <div class="category-panel-heading">
+              <span class="category-icon" aria-hidden="true">${category.icon}</span>
+              <div>
+                <h3 id="${category.id}-title" class="category-panel-title">${escapeHTML(category.title)}</h3>
+                <p class="category-panel-description">${escapeHTML(category.description)}</p>
               </div>
             </div>
+            <a class="view-all-link" href="${category.href}">View All →</a>
+          </div>
+          <div class="category-panel-stories">
+            ${categoryStories.map((story) => `
+              <article class="premium-story-card" data-search="${escapeHTML(story.title)} ${escapeHTML(story.category)}">
+                <img src="${story.image}" alt="${escapeHTML(story.title)}" loading="lazy" decoding="async" sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw">
+                <div class="premium-story-card-body">
+                  <div class="premium-topline">
+                    <span class="premium-badge">${escapeHTML(story.category)}</span>
+                    <span class="premium-meta">${escapeHTML(story.date)}</span>
+                  </div>
+                  <h4>${escapeHTML(story.title)}</h4>
+                  <p>${escapeHTML(story.excerpt)}</p>
+                  <div class="premium-story-footer">
+                    <div class="premium-story-details">
+                      <span>By ${escapeHTML(story.author)}</span>
+                      <span>${story.readingTime} min</span>
+                      <span>${story.views || 0} views</span>
+                      <span>${story.comments || 0} comments</span>
+                    </div>
+                    <div class="premium-story-actions">
+                      <button class="action-chip" type="button" data-share aria-label="Share ${escapeHTML(story.title)}" data-url="${window.location.href}">↗</button>
+                      <button class="action-chip" type="button" aria-label="Bookmark ${escapeHTML(story.title)}">🔖</button>
+                      <a class="read-more-link" href="/news.html">Read more</a>
+                    </div>
+                  </div>
+                </div>
+              </article>
+            `).join('')}
           </div>
         </article>
-      `).join('');
-      initShare();
-    } catch (error) {
-      console.error('Error loading latest news:', error);
-      latestGrid.innerHTML = fallbackStories.slice(0, 6).map((story, index) => {
-        const normalized = normalizeStory(story, index);
-        return `
-          <article class="latest-card pulse-card" data-search="${escapeHTML(normalized.title)} ${escapeHTML(normalized.category)}">
-            <img src="${normalized.image}" alt="${escapeHTML(normalized.title)}" loading="lazy">
-            <div class="latest-card-body">
-              <span class="category-pill">${escapeHTML(normalized.category)}</span>
-              <h3>${escapeHTML(normalized.title)}</h3>
-              <p>${escapeHTML(normalized.excerpt)}</p>
-              <div class="story-meta">
-                <span>By ${escapeHTML(normalized.author)}</span>
-                <span>•</span>
-                <span>${escapeHTML(normalized.date)}</span>
-              </div>
-            </div>
-          </article>
-        `;
-      }).join('');
-    }
+      `;
+    }).join('');
+
+    container.innerHTML = markup;
+    initShare();
   };
 
   const init = async () => {
@@ -317,7 +379,12 @@ const app = (() => {
     initScroll();
     initShare();
     const heroIds = await initHeroSlider();
-    await initLatestNews(heroIds || []);
+    heroStoryIds = heroIds || [];
+    await renderCategorySections(heroStoryIds);
+    window.clearInterval(categoryRefreshTimer);
+    categoryRefreshTimer = window.setInterval(() => {
+      renderCategorySections(heroStoryIds);
+    }, 60000);
   };
 
   return { init };
